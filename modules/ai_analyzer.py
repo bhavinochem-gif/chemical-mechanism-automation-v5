@@ -1,400 +1,310 @@
-"""
-V5.3 multi-provider AI analyzer.
-
-Supported providers:
-    - Gemini
-    - OpenRouter
-    - Groq
-    - Ollama
-    - OpenAI
-
-Automatic mode:
-    Gemini -> OpenRouter -> Groq -> Ollama -> OpenAI
-
-Transient failures such as 429 and 503 trigger retry/fallback.
-"""
-
 import base64
-import io
 import json
 import os
 import time
 from typing import Any, Dict, List
 
-from openai import OpenAI
+# ---------------------------------------------------------
+# Optional SDK imports
+# ---------------------------------------------------------
 
 try:
     from google import genai
-    from google.genai import types
-
-    GEMINI_SDK_AVAILABLE = True
-
+    GEMINI_AVAILABLE = True
 except Exception:
     genai = None
-    types = None
-    GEMINI_SDK_AVAILABLE = False
+    GEMINI_AVAILABLE = False
+
+try:
+    from openai import OpenAI
+    OPENAI_AVAILABLE = True
+except Exception:
+    OpenAI = None
+    OPENAI_AVAILABLE = False
 
 
 # ---------------------------------------------------------
-# Structured output schema
+# Configuration
+# ---------------------------------------------------------
+
+DEFAULT_MODELS = {
+    "gemini": "gemini-3.6-flash",
+    "openrouter": "openrouter/free",
+    "groq": "qwen/qwen3.6-27b",
+    "ollama": "gemma3:12b",
+    "openai": "gpt-5.6-luna",
+}
+
+
+def get_secret(
+    name: str,
+    default: str = "",
+) -> str:
+
+    try:
+
+        import streamlit as st
+
+        value = st.secrets.get(
+            name,
+            default,
+        )
+
+        if value:
+            return str(value)
+
+    except Exception:
+        pass
+
+    return os.getenv(
+        name,
+        default,
+    )
+
+
+# ---------------------------------------------------------
+# JSON schema
 # ---------------------------------------------------------
 
 SCHEMA = {
     "type": "object",
-    "additionalProperties": False,
     "properties": {
-        "route_title": {
-            "type": "string"
-        },
+
         "route_summary": {
             "type": "string"
         },
+
+        "overall_confidence": {
+            "type": "number"
+        },
+
+        "starting_materials": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+
+        "final_products": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+
         "steps": {
             "type": "array",
             "items": {
+
                 "type": "object",
-                "additionalProperties": False,
+
                 "properties": {
+
                     "step_number": {
                         "type": "integer"
                     },
-                    "transformation": {
-                        "type": "string"
-                    },
-                    "reactants_smiles": {
+
+                    "reactants": {
                         "type": "array",
                         "items": {
                             "type": "string"
                         }
                     },
-                    "products_smiles": {
+
+                    "products": {
                         "type": "array",
                         "items": {
                             "type": "string"
                         }
                     },
+
                     "reagents": {
                         "type": "array",
                         "items": {
                             "type": "string"
                         }
                     },
-                    "solvent": {
+
+                    "conditions": {
                         "type": "string"
                     },
-                    "temperature": {
+
+                    "transformation": {
                         "type": "string"
                     },
-                    "time": {
+
+                    "mechanistic_class": {
                         "type": "string"
                     },
-                    "pressure": {
-                        "type": "string"
-                    },
-                    "yield": {
-                        "type": "string"
-                    },
-                    "reaction_class": {
-                        "type": "string"
-                    },
-                    "conditions_text": {
-                        "type": "string"
-                    },
-                    "stereochemical_changes": {
-                        "type": "string"
-                    },
+
                     "confidence": {
+                        "type": "number"
+                    },
+
+                    "reactant_smiles": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+
+                    "product_smiles": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+
+                    "intermediates": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+
+                    "electron_flow": {
                         "type": "string"
                     },
-                    "uncertainty": {
+
+                    "notes": {
                         "type": "string"
                     },
                 },
+
                 "required": [
                     "step_number",
-                    "transformation",
-                    "reactants_smiles",
-                    "products_smiles",
+                    "reactants",
+                    "products",
                     "reagents",
-                    "solvent",
-                    "temperature",
-                    "time",
-                    "pressure",
-                    "yield",
-                    "reaction_class",
-                    "conditions_text",
-                    "stereochemical_changes",
+                    "conditions",
+                    "transformation",
+                    "mechanistic_class",
                     "confidence",
-                    "uncertainty",
                 ],
             },
         },
     },
+
     "required": [
-        "route_title",
         "route_summary",
+        "overall_confidence",
+        "starting_materials",
+        "final_products",
         "steps",
     ],
 }
 
 
-PROMPT = """
-You are a senior organic and process chemist.
+# ---------------------------------------------------------
+# Prompt
+# ---------------------------------------------------------
 
-Analyze the uploaded synthetic route image(s).
+SYSTEM_PROMPT = """
+You are an expert synthetic organic chemist and reaction mechanism analyst.
 
-Extract every reaction step in order.
+Analyze the supplied synthetic route PDF/image and accompanying text.
 
-For each step identify:
+Your tasks are:
 
-1. Reactants/substrates
-2. Products
-3. Reagents
-4. Solvents
-5. Temperature
-6. Reaction time
-7. Pressure
-8. Yield
-9. Net chemical transformation
-10. Reaction class
-11. Stereochemical changes
-12. Confidence
-13. Uncertainty
+1. Identify every discrete synthetic transformation.
+2. Identify reactants and products.
+3. Extract reagents, catalysts, solvents and conditions.
+4. Infer the most probable reaction class.
+5. Identify named reactions where justified.
+6. Propose a chemically reasonable mechanism.
+7. Identify likely intermediates.
+8. Provide probable electron-flow description.
+9. Extract SMILES when structures are visually identifiable.
+10. Never invent a structure if the image is unclear.
+11. Clearly distinguish observed information from inferred information.
+12. Assign confidence values between 0 and 1.
 
-IMPORTANT STRUCTURE RULES:
-
-- Provide SMILES only when the structure can be interpreted with reasonable confidence.
-- Do not invent atoms, bonds or stereochemistry.
+Important:
+- Do not claim certainty where the structure is ambiguous.
 - Preserve stereochemistry when visible.
-- Preserve salts/counterions when clearly visible.
-- If the structure cannot be confidently interpreted, return an empty SMILES array.
-- Explain the uncertainty.
-- Separate observed transformation from mechanistic inference.
-- Do not force a named reaction when evidence is weak.
-
-Return only the requested structured JSON.
+- Do not silently change molecular structures.
+- Prefer chemically conservative interpretation.
+- For each step, explain the transformation at the molecular level.
 """
 
 
 # ---------------------------------------------------------
-# Environment helpers
+# Input construction
 # ---------------------------------------------------------
 
-def _secret(name: str, default=None):
+def build_prompt(
+    text: str,
+) -> str:
 
-    try:
+    return f"""
+{SYSTEM_PROMPT}
 
-        import streamlit as st
+DOCUMENT TEXT:
 
-        value = st.secrets.get(name)
+{text[:30000]}
 
-        if value:
-            return value
-
-    except Exception:
-        pass
-
-    return os.getenv(name, default)
+Return ONLY JSON conforming to the supplied schema.
+"""
 
 
-def _bool_value(value):
+def image_to_part(
+    image: Any,
+) -> Dict[str, Any]:
 
-    if isinstance(value, bool):
-        return value
+    if isinstance(image, dict):
 
-    return str(value).strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
+        data = image.get("data")
 
+        if data is None:
 
-# ---------------------------------------------------------
-# Provider status
-# ---------------------------------------------------------
+            raw = image.get("bytes")
 
-def provider_status():
+            if raw is not None:
+                data = base64.b64encode(
+                    raw
+                ).decode("utf-8")
 
-    return {
-        "gemini": {
-            "available": bool(
-                _secret("GEMINI_API_KEY")
-            ),
-            "sdk_available": GEMINI_SDK_AVAILABLE,
-            "model": _secret(
-                "GEMINI_MODEL",
-                "gemini-2.5-flash",
-            ),
-        },
-        "openrouter": {
-            "available": bool(
-                _secret("OPENROUTER_API_KEY")
-            ),
-            "model": _secret(
-                "OPENROUTER_MODEL",
-                "openrouter/free",
-            ),
-        },
-        "groq": {
-            "available": bool(
-                _secret("GROQ_API_KEY")
-            ),
-            "model": _secret(
-                "GROQ_MODEL",
-                "qwen/qwen3.6-27b",
-            ),
-        },
-        "ollama": {
-            "available": _bool_value(
-                _secret(
-                    "OLLAMA_ENABLED",
-                    False,
-                )
-            ),
-            "model": _secret(
-                "OLLAMA_MODEL",
-                "gemma3:12b",
-            ),
-        },
-        "openai": {
-            "available": bool(
-                _secret("OPENAI_API_KEY")
-            ),
-            "model": _secret(
-                "OPENAI_MODEL",
-                "gpt-5.6-luna",
-            ),
-        },
-    }
-
-
-# ---------------------------------------------------------
-# Image conversion
-# ---------------------------------------------------------
-
-def _image_bytes(image):
-
-    buffer = io.BytesIO()
-
-    image.save(
-        buffer,
-        format="PNG",
-    )
-
-    return buffer.getvalue()
-
-
-def _data_url(image):
-
-    data = _image_bytes(image)
-
-    return (
-        "data:image/png;base64,"
-        + base64.b64encode(data).decode("ascii")
-    )
-
-
-# ---------------------------------------------------------
-# Retry classification
-# ---------------------------------------------------------
-
-def _is_retryable_error(exc):
-
-    text = str(exc).lower()
-
-    retry_terms = [
-        "429",
-        "503",
-        "500",
-        "502",
-        "504",
-        "unavailable",
-        "resource_exhausted",
-        "rate limit",
-        "rate_limit",
-        "temporarily",
-        "timeout",
-        "deadline",
-        "overloaded",
-        "high demand",
-    ]
-
-    return any(
-        term in text
-        for term in retry_terms
-    )
-
-
-def _retry_delay(attempt):
-
-    # 2, 4, 8 seconds
-    return min(
-        2 ** attempt,
-        12,
-    )
-
-
-# ---------------------------------------------------------
-# JSON extraction
-# ---------------------------------------------------------
-
-def _parse_json(text):
-
-    if not text:
-
-        raise RuntimeError(
-            "AI provider returned empty output."
+        mime = image.get(
+            "mime_type",
+            "image/png",
         )
 
-    text = text.strip()
+        return {
+            "type": "image",
+            "mime_type": mime,
+            "data": data,
+        }
 
-    try:
-        return json.loads(text)
+    if isinstance(image, bytes):
 
-    except Exception:
-        pass
+        return {
+            "type": "image",
+            "mime_type": "image/png",
+            "data": base64.b64encode(
+                image
+            ).decode("utf-8"),
+        }
 
-    # Remove Markdown JSON fencing
-    if text.startswith("```"):
-
-        lines = text.splitlines()
-
-        if len(lines) >= 3:
-
-            cleaned = "\n".join(
-                lines[1:-1]
-            )
-
-            try:
-                return json.loads(cleaned)
-
-            except Exception:
-                pass
-
-    raise RuntimeError(
-        "AI provider returned output that could not "
-        "be parsed as JSON."
-    )
+    return None
 
 
 # ---------------------------------------------------------
-# Gemini
+# Gemini Interactions API
 # ---------------------------------------------------------
 
-def _analyze_gemini(
-    pages,
-    model,
-    detail,
-):
+def call_gemini(
+    text: str,
+    images: List[Any],
+    model: str,
+) -> Dict[str, Any]:
 
-    if not GEMINI_SDK_AVAILABLE:
+    if not GEMINI_AVAILABLE:
 
         raise RuntimeError(
             "google-genai package is not installed."
         )
 
-    api_key = _secret(
+    api_key = get_secret(
         "GEMINI_API_KEY"
     )
 
@@ -408,229 +318,262 @@ def _analyze_gemini(
         api_key=api_key
     )
 
-    contents = [
-        PROMPT
+    input_parts = [
+        {
+            "type": "text",
+            "text": build_prompt(text),
+        }
     ]
 
-    for page in pages:
+    for image in images[:8]:
 
-        contents.append(
-            types.Part.from_bytes(
-                data=_image_bytes(
-                    page["image"]
-                ),
-                mime_type="image/png",
-            )
+        part = image_to_part(
+            image
         )
 
-    response = client.models.generate_content(
+        if part and part.get("data"):
+
+            input_parts.append(
+                part
+            )
+
+    interaction = client.interactions.create(
+
         model=model,
-        contents=contents,
-        config=types.GenerateContentConfig(
-            temperature=0,
-            response_mime_type="application/json",
-            response_schema=SCHEMA,
-        ),
+
+        input=input_parts,
+
+        response_format={
+            "type": "text",
+            "mime_type": "application/json",
+            "schema": SCHEMA,
+        },
     )
 
-    return _parse_json(
-        response.text
+    output = getattr(
+        interaction,
+        "output_text",
+        None,
+    )
+
+    if not output:
+
+        raise RuntimeError(
+            "Gemini returned no output text."
+        )
+
+    return json.loads(
+        output
     )
 
 
 # ---------------------------------------------------------
-# OpenAI-compatible multimodal provider
+# OpenAI-compatible providers
 # ---------------------------------------------------------
 
-def _analyze_openai_compatible(
-    api_key,
-    base_url,
-    model,
-    pages,
-):
+def call_openai_compatible(
+    provider: str,
+    text: str,
+    images: List[Any],
+    model: str,
+) -> Dict[str, Any]:
+
+    if not OPENAI_AVAILABLE:
+
+        raise RuntimeError(
+            "openai package is not installed."
+        )
+
+    if provider == "openrouter":
+
+        api_key = get_secret(
+            "OPENROUTER_API_KEY"
+        )
+
+        base_url = (
+            "https://openrouter.ai/api/v1"
+        )
+
+    elif provider == "groq":
+
+        api_key = get_secret(
+            "GROQ_API_KEY"
+        )
+
+        base_url = (
+            "https://api.groq.com/openai/v1"
+        )
+
+    elif provider == "ollama":
+
+        api_key = (
+            get_secret(
+                "OLLAMA_API_KEY",
+                "ollama",
+            )
+            or "ollama"
+        )
+
+        base_url = get_secret(
+            "OLLAMA_BASE_URL",
+            "http://localhost:11434/v1",
+        )
+
+    elif provider == "openai":
+
+        api_key = get_secret(
+            "OPENAI_API_KEY"
+        )
+
+        base_url = None
+
+    else:
+
+        raise ValueError(
+            f"Unsupported provider: {provider}"
+        )
 
     if not api_key:
 
         raise RuntimeError(
-            "API key is not configured."
+            f"{provider} API key is not configured."
         )
 
+    kwargs = {
+        "api_key": api_key
+    }
+
+    if base_url:
+        kwargs["base_url"] = base_url
+
     client = OpenAI(
-        api_key=api_key,
-        base_url=base_url,
+        **kwargs
     )
 
-    content = [
+    user_content = [
         {
             "type": "text",
-            "text": PROMPT,
+            "text": build_prompt(text),
         }
     ]
 
-    for page in pages:
+    for image in images[:8]:
 
-        content.append(
+        part = image_to_part(
+            image
+        )
+
+        if not part:
+            continue
+
+        user_content.append(
             {
                 "type": "image_url",
                 "image_url": {
-                    "url": _data_url(
-                        page["image"]
-                    )
+                    "url":
+                        "data:"
+                        + part["mime_type"]
+                        + ";base64,"
+                        + part["data"]
                 },
             }
         )
 
     response = client.chat.completions.create(
+
         model=model,
+
         messages=[
             {
+                "role": "system",
+                "content":
+                    SYSTEM_PROMPT,
+            },
+            {
                 "role": "user",
-                "content": content,
-            }
+                "content":
+                    user_content,
+            },
         ],
-        temperature=0,
+
+        temperature=0.1,
+
         response_format={
             "type": "json_object"
         },
     )
 
-    text = response.choices[0].message.content
+    content = response.choices[0].message.content
 
-    return _parse_json(text)
-
-
-# ---------------------------------------------------------
-# OpenRouter
-# ---------------------------------------------------------
-
-def _analyze_openrouter(
-    pages,
-    model,
-    detail,
-):
-
-    return _analyze_openai_compatible(
-        api_key=_secret(
-            "OPENROUTER_API_KEY"
-        ),
-        base_url="https://openrouter.ai/api/v1",
-        model=model,
-        pages=pages,
-    )
-
-
-# ---------------------------------------------------------
-# Groq
-# ---------------------------------------------------------
-
-def _analyze_groq(
-    pages,
-    model,
-    detail,
-):
-
-    return _analyze_openai_compatible(
-        api_key=_secret(
-            "GROQ_API_KEY"
-        ),
-        base_url="https://api.groq.com/openai/v1",
-        model=model,
-        pages=pages,
-    )
-
-
-# ---------------------------------------------------------
-# Ollama
-# ---------------------------------------------------------
-
-def _analyze_ollama(
-    pages,
-    model,
-    detail,
-):
-
-    if not _bool_value(
-        _secret(
-            "OLLAMA_ENABLED",
-            False,
-        )
-    ):
+    if not content:
 
         raise RuntimeError(
-            "Ollama is disabled."
+            f"{provider} returned empty response."
         )
 
-    return _analyze_openai_compatible(
-        api_key="ollama",
-        base_url=_secret(
-            "OLLAMA_BASE_URL",
-            "http://localhost:11434/v1",
-        ),
-        model=model,
-        pages=pages,
+    return json.loads(
+        content
     )
 
 
 # ---------------------------------------------------------
-# OpenAI
+# Provider dispatcher
 # ---------------------------------------------------------
 
-def _analyze_openai(
-    pages,
-    model,
-    detail,
-):
+def call_provider(
+    provider: str,
+    text: str,
+    images: List[Any],
+) -> Dict[str, Any]:
 
-    return _analyze_openai_compatible(
-        api_key=_secret(
-            "OPENAI_API_KEY"
-        ),
-        base_url="https://api.openai.com/v1",
+    model = get_secret(
+        provider.upper() + "_MODEL",
+        DEFAULT_MODELS[provider],
+    )
+
+    if provider == "gemini":
+
+        return call_gemini(
+            text=text,
+            images=images,
+            model=model,
+        )
+
+    return call_openai_compatible(
+        provider=provider,
+        text=text,
+        images=images,
         model=model,
-        pages=pages,
     )
 
 
 # ---------------------------------------------------------
-# Provider configuration
+# Provider order
 # ---------------------------------------------------------
 
-def _provider_models():
+def provider_order(
+    selected: str,
+) -> List[str]:
 
-    return {
-        "gemini": _secret(
-            "GEMINI_MODEL",
-            "gemini-2.5-flash",
-        ),
-        "openrouter": _secret(
-            "OPENROUTER_MODEL",
-            "openrouter/free",
-        ),
-        "groq": _secret(
-            "GROQ_MODEL",
-            "qwen/qwen3.6-27b",
-        ),
-        "ollama": _secret(
-            "OLLAMA_MODEL",
-            "gemma3:12b",
-        ),
-        "openai": _secret(
-            "OPENAI_MODEL",
-            "gpt-5.6-luna",
-        ),
+    mapping = {
+        "Gemini": ["gemini"],
+        "OpenRouter": ["openrouter"],
+        "Groq": ["groq"],
+        "Ollama": ["ollama"],
+        "OpenAI": ["openai"],
     }
 
+    if selected in mapping:
+        return mapping[selected]
 
-def _fallback_order():
-
-    value = _secret(
+    raw = get_secret(
         "AI_FALLBACK_ORDER",
         "gemini,openrouter,groq,ollama,openai",
     )
 
     return [
         x.strip().lower()
-        for x in str(value).split(",")
+        for x in raw.split(",")
         if x.strip()
     ]
 
@@ -640,157 +583,134 @@ def _fallback_order():
 # ---------------------------------------------------------
 
 def analyze_route(
-    pages,
-    model=None,
-    detail="high",
-    provider="auto",
-    fallback=True,
-):
+    text: str,
+    images: List[Any],
+    provider: str = "Automatic",
+) -> Dict[str, Any]:
 
-    if not pages:
-
-        raise RuntimeError(
-            "No reaction-route pages supplied."
-        )
-
-    provider = (
-        provider or "auto"
-    ).lower().strip()
-
-    models = _provider_models()
-
-    if provider == "auto":
-
-        providers = _fallback_order()
-
-    else:
-
-        providers = [
-            provider
-        ]
-
-    # If a manually selected provider has a model
-    # supplied by the Streamlit UI, use it.
-    if provider != "auto" and model:
-
-        models[provider] = model
+    providers = provider_order(
+        provider
+    )
 
     errors = []
 
-    for provider_name in providers:
+    for current_provider in providers:
 
-        if provider_name not in models:
-
+        if current_provider not in DEFAULT_MODELS:
             continue
-
-        selected_model = models[
-            provider_name
-        ]
-
-        # -------------------------------------------------
-        # Check provider availability
-        # -------------------------------------------------
-
-        status = provider_status().get(
-            provider_name,
-            {},
-        )
-
-        if not status.get(
-            "available",
-            False,
-        ):
-
-            errors.append(
-                f"{provider_name}: not configured"
-            )
-
-            continue
-
-        # -------------------------------------------------
-        # Retry provider
-        # -------------------------------------------------
 
         for attempt in range(3):
 
             try:
 
-                if provider_name == "gemini":
-
-                    return _analyze_gemini(
-                        pages,
-                        selected_model,
-                        detail,
-                    )
-
-                if provider_name == "openrouter":
-
-                    return _analyze_openrouter(
-                        pages,
-                        selected_model,
-                        detail,
-                    )
-
-                if provider_name == "groq":
-
-                    return _analyze_groq(
-                        pages,
-                        selected_model,
-                        detail,
-                    )
-
-                if provider_name == "ollama":
-
-                    return _analyze_ollama(
-                        pages,
-                        selected_model,
-                        detail,
-                    )
-
-                if provider_name == "openai":
-
-                    return _analyze_openai(
-                        pages,
-                        selected_model,
-                        detail,
-                    )
-
-                raise RuntimeError(
-                    f"Unknown provider: {provider_name}"
+                analysis = call_provider(
+                    provider=current_provider,
+                    text=text,
+                    images=images,
                 )
+
+                return {
+                    "success": True,
+                    "provider":
+                        current_provider,
+                    "model":
+                        get_secret(
+                            current_provider.upper()
+                            + "_MODEL",
+                            DEFAULT_MODELS[
+                                current_provider
+                            ],
+                        ),
+                    "analysis":
+                        analysis,
+                    "diagnostics":
+                        errors,
+                }
 
             except Exception as exc:
 
-                errors.append(
-                    f"{provider_name} "
-                    f"({selected_model}) "
+                msg = (
+                    f"{current_provider} "
                     f"attempt {attempt + 1}: "
                     f"{exc}"
                 )
 
-                if not _is_retryable_error(
-                    exc
-                ):
+                errors.append(
+                    msg
+                )
 
+                # Do not wait unnecessarily
+                # for obvious configuration errors.
+                text_error = str(
+                    exc
+                ).lower()
+
+                if any(
+                    x in text_error
+                    for x in [
+                        "api key",
+                        "not configured",
+                        "authentication",
+                        "unauthorized",
+                        "404",
+                    ]
+                ):
                     break
 
-                if attempt < 2:
+                time.sleep(
+                    1.5 * (attempt + 1)
+                )
 
-                    time.sleep(
-                        _retry_delay(attempt)
-                    )
+    return {
+        "success": False,
+        "error":
+            "All configured AI providers failed.",
+        "diagnostics":
+            errors,
+    }
 
-        # -------------------------------------------------
-        # Fallback
-        # -------------------------------------------------
 
-        if not fallback:
+# ---------------------------------------------------------
+# Diagnostics
+# ---------------------------------------------------------
 
-            break
+def get_provider_status():
 
-    raise RuntimeError(
-        "All configured AI providers failed.\n\n"
-        + "\n".join(
-            errors
+    result = {}
+
+    for provider in DEFAULT_MODELS:
+
+        key_name = (
+            provider.upper()
+            + "_API_KEY"
         )
-    )
+
+        if provider == "ollama":
+
+            enabled = get_secret(
+                "OLLAMA_ENABLED",
+                "false",
+            ).lower() == "true"
+
+        else:
+
+            enabled = bool(
+                get_secret(
+                    key_name,
+                    "",
+                )
+            )
+
+        result[provider] = {
+            "configured": enabled,
+            "model":
+                get_secret(
+                    provider.upper()
+                    + "_MODEL",
+                    DEFAULT_MODELS[
+                        provider
+                    ],
+                ),
+        }
+
+    return result
