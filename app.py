@@ -1,165 +1,124 @@
 import json
-import os
+import traceback
+from pathlib import Path
+
 import streamlit as st
 
-APP_NAME = "Chemical Reaction Mechanism Automation"
-APP_VERSION = "5.3.0"
+APP_VERSION = "5.3.1"
 
-st.set_page_config(
-    page_title=APP_NAME,
-    page_icon="🧪",
-    layout="wide",
-)
+BASE_DIR = Path(__file__).resolve().parent
 
 # ---------------------------------------------------------
 # Safe imports
 # ---------------------------------------------------------
 
-IMPORT_ERRORS = {}
+IMPORT_ERRORS = []
 
 try:
-    from modules.pdf_processor import extract_pages
-except Exception as exc:
-    extract_pages = None
-    IMPORT_ERRORS["pdf_processor"] = str(exc)
+    from modules.pdf_processor import (
+        process_uploaded_file,
+        get_text_from_pages,
+    )
+except Exception as e:
+    IMPORT_ERRORS.append(f"pdf_processor: {e}")
 
 try:
-    from modules.ai_analyzer import analyze_route, provider_status
-except Exception as exc:
-    analyze_route = None
-    provider_status = None
-    IMPORT_ERRORS["ai_analyzer"] = str(exc)
+    from modules.ai_analyzer import (
+        analyze_route,
+        get_provider_status,
+    )
+except Exception as e:
+    IMPORT_ERRORS.append(f"ai_analyzer: {e}")
 
 try:
-    from modules.structure_engine import enrich_step, describe_smiles
-except Exception as exc:
-    enrich_step = None
-    describe_smiles = None
-    IMPORT_ERRORS["structure_engine"] = str(exc)
+    from modules.structure_engine import (
+        enrich_structures,
+    )
+except Exception as e:
+    IMPORT_ERRORS.append(f"structure_engine: {e}")
 
 try:
-    from modules.reaction_database import identify_named_reactions
-except Exception as exc:
-    identify_named_reactions = None
-    IMPORT_ERRORS["reaction_database"] = str(exc)
+    from modules.reaction_database import (
+        identify_named_reactions,
+    )
+except Exception as e:
+    IMPORT_ERRORS.append(f"reaction_database: {e}")
 
 try:
-    from modules.mechanism_engine import build_mechanism
-except Exception as exc:
-    build_mechanism = None
-    IMPORT_ERRORS["mechanism_engine"] = str(exc)
+    from modules.mechanism_engine import (
+        build_mechanism_report,
+    )
+except Exception as e:
+    IMPORT_ERRORS.append(f"mechanism_engine: {e}")
 
 try:
     from modules.mechanism_renderer import (
         render_mechanism_scheme,
-        renderer_status,
     )
-except Exception as exc:
-    render_mechanism_scheme = None
-    renderer_status = None
-    IMPORT_ERRORS["mechanism_renderer"] = str(exc)
+except Exception as e:
+    IMPORT_ERRORS.append(f"mechanism_renderer: {e}")
 
 try:
-    from modules.cascade_renderer import render_cascade
-except Exception as exc:
-    render_cascade = None
-    IMPORT_ERRORS["cascade_renderer"] = str(exc)
+    from modules.cascade_renderer import (
+        render_cascade,
+    )
+except Exception as e:
+    IMPORT_ERRORS.append(f"cascade_renderer: {e}")
 
 try:
-    from modules.report_generator import build_pdf
-except Exception as exc:
-    build_pdf = None
-    IMPORT_ERRORS["report_generator"] = str(exc)
+    from modules.report_generator import (
+        build_pdf,
+        reportlab_status,
+    )
+except Exception as e:
+    IMPORT_ERRORS.append(f"report_generator: {e}")
 
 
 # ---------------------------------------------------------
-# Helpers
+# Page
 # ---------------------------------------------------------
 
-def get_secret(name, default=None):
-    try:
-        value = st.secrets.get(name)
-        if value:
-            return value
-    except Exception:
-        pass
-
-    return os.getenv(name, default)
-
-
-def get_bool_secret(name, default=False):
-    value = get_secret(name, default)
-
-    if isinstance(value, bool):
-        return value
-
-    return str(value).strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
-
-
-def json_safe(obj):
-    if isinstance(obj, dict):
-        result = {}
-        for key, value in obj.items():
-            if key in {
-                "image",
-                "png",
-                "image_bytes",
-                "scheme_png",
-                "cascade_png",
-            }:
-                continue
-            result[key] = json_safe(value)
-        return result
-
-    if isinstance(obj, list):
-        return [json_safe(x) for x in obj]
-
-    if isinstance(obj, bytes):
-        return None
-
-    return obj
-
-
-def render_mol(smiles):
-    try:
-        from modules.structure_engine import describe_smiles
-        from modules.mechanism_renderer import render_structure
-
-        data = describe_smiles(smiles)
-
-        if data and data.get("valid"):
-            png = render_structure(smiles)
-
-            if png:
-                st.image(png, width=400)
-
-            st.caption(
-                f"Formula: {data.get('formula', 'N/A')} | "
-                f"MW: {data.get('mw', 'N/A')} | "
-                f"SMILES: {data.get('canonical_smiles', smiles)}"
-            )
-        else:
-            st.warning(f"Invalid or unreadable SMILES: {smiles}")
-
-    except Exception as exc:
-        st.warning(f"Structure rendering unavailable: {exc}")
-
-
-# ---------------------------------------------------------
-# Header
-# ---------------------------------------------------------
-
-st.title("🧪 Chemical Reaction Mechanism Automation")
-
-st.caption(
-    f"Version {APP_VERSION} — Multistep synthetic-route analysis, "
-    "structure validation, named reactions and proposed mechanisms"
+st.set_page_config(
+    page_title="Chemical Reaction Mechanism Automation",
+    page_icon="⚗️",
+    layout="wide",
 )
+
+st.title("⚗️ Chemical Reaction Mechanism Automation")
+st.caption(f"Version {APP_VERSION}")
+
+st.markdown(
+    """
+Upload a **synthetic route PDF, reaction scheme image, or experimental
+reaction document** and the application will attempt to identify:
+
+- starting materials
+- products
+- reagents
+- solvents
+- catalysts
+- reaction conditions
+- reaction transformations
+- named reactions
+- probable mechanisms
+- intermediates
+- structure cascade
+- molecular formula / MW where structures are available
+"""
+)
+
+
+# ---------------------------------------------------------
+# Secrets
+# ---------------------------------------------------------
+
+def secret(name, default=""):
+    try:
+        value = st.secrets.get(name, default)
+        return value if value is not None else default
+    except Exception:
+        return default
+
 
 # ---------------------------------------------------------
 # Sidebar
@@ -167,7 +126,7 @@ st.caption(
 
 with st.sidebar:
 
-    st.header("AI Configuration")
+    st.header("⚙️ Configuration")
 
     provider_options = [
         "Automatic",
@@ -178,147 +137,48 @@ with st.sidebar:
         "OpenAI",
     ]
 
-    default_provider = get_secret("AI_PROVIDER", "auto")
-
-    provider_map = {
-        "auto": "Automatic",
-        "automatic": "Automatic",
-        "gemini": "Gemini",
-        "openrouter": "OpenRouter",
-        "groq": "Groq",
-        "ollama": "Ollama",
-        "openai": "OpenAI",
-    }
-
-    provider_default = provider_map.get(
-        str(default_provider).lower(),
-        "Automatic",
-    )
-
-    provider = st.selectbox(
+    selected_provider = st.selectbox(
         "AI Provider",
         provider_options,
-        index=provider_options.index(provider_default),
-    )
-
-    provider_internal = provider.lower()
-
-    if provider_internal == "automatic":
-        provider_internal = "auto"
-
-    model_defaults = {
-        "gemini": get_secret(
-            "GEMINI_MODEL",
-            "gemini-2.5-flash",
-        ),
-        "openrouter": get_secret(
-            "OPENROUTER_MODEL",
-            "openrouter/free",
-        ),
-        "groq": get_secret(
-            "GROQ_MODEL",
-            "qwen/qwen3.6-27b",
-        ),
-        "ollama": get_secret(
-            "OLLAMA_MODEL",
-            "gemma3:12b",
-        ),
-        "openai": get_secret(
-            "OPENAI_MODEL",
-            "gpt-5.6-luna",
-        ),
-    }
-
-    model = st.text_input(
-        "Model",
-        value=model_defaults.get(
-            provider_internal,
-            model_defaults["gemini"],
-        ),
-    )
-
-    image_detail = st.selectbox(
-        "Image detail",
-        ["high", "auto", "low"],
         index=0,
     )
 
-    st.divider()
-
-    st.header("Analysis Options")
-
-    render_arrows = st.checkbox(
-        "Render mechanism arrows",
-        value=True,
+    fallback_order = secret(
+        "AI_FALLBACK_ORDER",
+        "gemini,openrouter,groq,ollama,openai",
     )
-
-    identify_names = st.checkbox(
-        "Identify named reactions",
-        value=True,
-    )
-
-    propose_mechanisms = st.checkbox(
-        "Generate proposed mechanisms",
-        value=True,
-    )
-
-    show_cascade = st.checkbox(
-        "Generate structure cascade",
-        value=True,
-    )
-
-    st.divider()
 
     st.caption(
-        "V5.3 supports Gemini, OpenRouter, Groq, "
-        "Ollama and OpenAI."
+        f"Fallback order: `{fallback_order}`"
     )
 
+    st.divider()
 
-# ---------------------------------------------------------
-# API availability
-# ---------------------------------------------------------
+    st.subheader("Models")
 
-if provider_status:
+    st.code(
+        f"""
+Gemini      : {secret("GEMINI_MODEL", "gemini-3.6-flash")}
+OpenRouter  : {secret("OPENROUTER_MODEL", "openrouter/free")}
+Groq        : {secret("GROQ_MODEL", "qwen/qwen3.6-27b")}
+Ollama      : {secret("OLLAMA_MODEL", "gemma3:12b")}
+OpenAI      : {secret("OPENAI_MODEL", "gpt-5.6-luna")}
+""",
+        language="text",
+    )
 
-    with st.expander("AI provider status"):
+    st.divider()
 
+    if IMPORT_ERRORS:
+        st.error("Import problems detected")
+        for err in IMPORT_ERRORS:
+            st.code(err)
+
+    if "reportlab_status" in globals():
         try:
-            statuses = provider_status()
-
-            for name, info in statuses.items():
-
-                available = info.get("available", False)
-
-                if available:
-                    st.success(
-                        f"{name}: configured"
-                    )
-                else:
-                    st.info(
-                        f"{name}: not configured"
-                    )
-
-        except Exception as exc:
-            st.warning(str(exc))
-
-
-# ---------------------------------------------------------
-# OpenAI/Gemini keys are NOT hard-coded
-# ---------------------------------------------------------
-
-if not any([
-    get_secret("GEMINI_API_KEY"),
-    get_secret("OPENROUTER_API_KEY"),
-    get_secret("GROQ_API_KEY"),
-    get_bool_secret("OLLAMA_ENABLED", False),
-    get_secret("OPENAI_API_KEY"),
-]):
-
-    st.warning(
-        "No AI provider is configured. "
-        "Add at least one provider API key in Streamlit Secrets."
-    )
+            st.caption(reportlab_status())
+        except Exception:
+            pass
 
 
 # ---------------------------------------------------------
@@ -332,731 +192,470 @@ uploaded_file = st.file_uploader(
         "png",
         "jpg",
         "jpeg",
+        "webp",
         "tif",
         "tiff",
     ],
 )
 
+if uploaded_file is None:
 
-if uploaded_file:
-
-    st.write(
-        f"**File:** {uploaded_file.name}  "
-        f"({uploaded_file.size / 1024:.1f} KB)"
+    st.info(
+        "Upload a PDF or reaction-scheme image to begin."
     )
 
-    if extract_pages is None:
-        st.error(
-            "PDF/image processor could not be loaded."
-        )
-        st.stop()
-
-    try:
-
-        pages = extract_pages(
-            uploaded_file.getvalue(),
-            uploaded_file.name,
-        )
-
-        st.success(
-            f"Loaded {len(pages)} page(s)."
+    with st.expander("Example workflow"):
+        st.write(
+            """
+            1. Upload route PDF/image
+            2. Extract reaction scheme and text
+            3. AI identifies transformations
+            4. Structures are validated using RDKit
+            5. Named reactions are searched
+            6. Mechanism is proposed
+            7. Reaction cascade is generated
+            8. Download JSON/PDF report
+            """
         )
 
-        with st.expander("Preview uploaded route"):
-
-            for page in pages:
-
-                st.image(
-                    page["image"],
-                    caption=f"Page {page['page_number']}",
-                    use_container_width=True,
-                )
-
-    except Exception as exc:
-
-        st.error(
-            f"Unable to read uploaded file: {exc}"
-        )
-        st.stop()
+    st.stop()
 
 
 # ---------------------------------------------------------
-# Analyze
+# Process file
 # ---------------------------------------------------------
 
-analyze_button = st.button(
-    "🔬 Analyze Reaction Route",
-    type="primary",
-    use_container_width=True,
+st.success(
+    f"Uploaded: {uploaded_file.name}"
 )
 
-
-if analyze_button:
-
-    if not uploaded_file:
-
-        st.error(
-            "Please upload a PDF or reaction-route image first."
-        )
-        st.stop()
-
-    if analyze_route is None:
-
-        st.error(
-            "AI analyzer could not be loaded."
-        )
-        st.stop()
-
-    if not pages:
-
-        st.error(
-            "No pages were extracted from the uploaded file."
-        )
-        st.stop()
+if st.button(
+    "🔬 Analyze Synthetic Route",
+    type="primary",
+    use_container_width=True,
+):
 
     try:
 
-        with st.status(
-            "Analyzing synthetic route...",
-            expanded=True,
+        with st.spinner("Reading uploaded document..."):
+
+            file_bytes = uploaded_file.getvalue()
+
+            processed = process_uploaded_file(
+                file_bytes=file_bytes,
+                filename=uploaded_file.name,
+            )
+
+        st.subheader("Document extraction")
+
+        extracted_text = get_text_from_pages(processed)
+
+        with st.expander(
+            "View extracted text",
+            expanded=False,
+        ):
+            st.text_area(
+                "Extracted text",
+                extracted_text,
+                height=250,
+            )
+
+        with st.spinner(
+            "Analyzing chemistry with AI..."
         ):
 
-            st.write(
-                f"AI provider: **{provider}**"
+            result = analyze_route(
+                text=extracted_text,
+                images=processed.get("images", []),
+                provider=selected_provider,
             )
 
-            st.write(
-                "Extracting reaction structures and conditions..."
+        if not result.get("success"):
+
+            st.error(
+                "Analysis failed: "
+                + str(result.get("error", "Unknown error"))
             )
 
-            route = analyze_route(
-                pages=pages,
-                model=model,
-                detail=image_detail,
-                provider=provider_internal,
-                fallback=(provider_internal == "auto"),
-            )
+            if result.get("diagnostics"):
+                with st.expander("Diagnostics"):
+                    st.json(result["diagnostics"])
 
-            steps = route.get("steps", [])
+            st.stop()
 
-            st.write(
-                f"Detected **{len(steps)} reaction step(s)**."
-            )
+        analysis = result["analysis"]
 
-            # ---------------------------------------------
-            # RDKit validation
-            # ---------------------------------------------
-
-            if enrich_step:
-
-                st.write(
-                    "Validating structures with RDKit..."
-                )
-
-                enriched_steps = []
-
-                for step in steps:
-
-                    try:
-                        enriched_steps.append(
-                            enrich_step(step)
-                        )
-
-                    except Exception as exc:
-
-                        step["structure_validation_error"] = str(
-                            exc
-                        )
-
-                        enriched_steps.append(step)
-
-                route["steps"] = enriched_steps
-
-            # ---------------------------------------------
-            # Named reactions
-            # ---------------------------------------------
-
-            if identify_names and identify_named_reactions:
-
-                st.write(
-                    "Searching named-reaction database..."
-                )
-
-                for step in route.get("steps", []):
-
-                    try:
-
-                        step["named_reactions"] = (
-                            identify_named_reactions(step)
-                        )
-
-                    except Exception as exc:
-
-                        step["named_reactions"] = []
-
-                        step["named_reaction_error"] = str(
-                            exc
-                        )
-
-            # ---------------------------------------------
-            # Mechanisms
-            # ---------------------------------------------
-
-            if propose_mechanisms and build_mechanism:
-
-                st.write(
-                    "Generating proposed reaction mechanisms..."
-                )
-
-                for step in route.get("steps", []):
-
-                    try:
-
-                        step["mechanism"] = build_mechanism(
-                            step
-                        )
-
-                    except Exception as exc:
-
-                        step["mechanism"] = {
-                            "error": str(exc)
-                        }
-
-            # ---------------------------------------------
-            # Reaction scheme rendering
-            # ---------------------------------------------
-
-            if render_mechanism_scheme:
-
-                st.write(
-                    "Rendering reaction schemes..."
-                )
-
-                for step in route.get("steps", []):
-
-                    try:
-
-                        step["scheme_png"] = (
-                            render_mechanism_scheme(
-                                step,
-                                arrows=render_arrows,
-                            )
-                        )
-
-                    except Exception as exc:
-
-                        step["scheme_error"] = str(exc)
-
-            # ---------------------------------------------
-            # Structure cascade
-            # ---------------------------------------------
-
-            if show_cascade and render_cascade:
-
-                st.write(
-                    "Generating structure cascade..."
-                )
-
-                try:
-
-                    route["cascade_png"] = render_cascade(
-                        route
-                    )
-
-                except Exception as exc:
-
-                    route["cascade_error"] = str(exc)
-
-            route["analysis_metadata"] = {
-                "application": APP_NAME,
-                "version": APP_VERSION,
-                "provider": provider_internal,
-                "model": model,
-            }
-
-            st.session_state["route"] = route
-
-            st.success(
-                "Analysis completed."
-            )
-
-    except Exception as exc:
-
-        st.error(
-            f"Analysis failed: {exc}"
+        st.success(
+            f"Analysis completed using "
+            f"{result.get('provider', 'unknown')} "
+            f"/ {result.get('model', 'unknown')}"
         )
 
-        st.info(
-            "If this is a temporary 429/503 provider error, "
-            "try Automatic mode again. V5.3 supports provider fallback."
-        )
+        # -------------------------------------------------
+        # Structures
+        # -------------------------------------------------
 
+        with st.spinner(
+            "Validating chemical structures..."
+        ):
 
-# ---------------------------------------------------------
-# Results
-# ---------------------------------------------------------
-
-route = st.session_state.get("route")
-
-
-if route:
-
-    st.divider()
-
-    st.header("Analysis Results")
-
-    tabs = st.tabs([
-        "Route",
-        "Structures",
-        "Named Reactions",
-        "Mechanisms",
-        "Data",
-        "Downloads",
-        "Diagnostics",
-    ])
-
-    # -----------------------------------------------------
-    # Route
-    # -----------------------------------------------------
-
-    with tabs[0]:
-
-        st.subheader(
-            route.get(
-                "route_title",
-                "Synthetic Route",
+            analysis = enrich_structures(
+                analysis
             )
-        )
+
+        # -------------------------------------------------
+        # Named reactions
+        # -------------------------------------------------
+
+        with st.spinner(
+            "Searching named reaction database..."
+        ):
+
+            named_reactions = identify_named_reactions(
+                analysis
+            )
+
+        analysis["named_reactions"] = named_reactions
+
+        # -------------------------------------------------
+        # Mechanism
+        # -------------------------------------------------
+
+        with st.spinner(
+            "Building proposed reaction mechanisms..."
+        ):
+
+            mechanism = build_mechanism_report(
+                analysis
+            )
+
+        analysis["mechanism_report"] = mechanism
+
+        # -------------------------------------------------
+        # Display summary
+        # -------------------------------------------------
+
+        st.header("1. Route Summary")
 
         st.write(
-            route.get(
+            analysis.get(
                 "route_summary",
-                "",
+                "No route summary generated.",
             )
         )
 
-        for step in route.get("steps", []):
+        # -------------------------------------------------
+        # Steps
+        # -------------------------------------------------
+
+        st.header("2. Reaction Steps")
+
+        steps = analysis.get("steps", [])
+
+        if not steps:
+
+            st.warning(
+                "No discrete reaction steps were detected."
+            )
+
+        for step in steps:
+
+            step_no = step.get(
+                "step_number",
+                "?",
+            )
+
+            title = step.get(
+                "transformation",
+                "Reaction step",
+            )
 
             with st.expander(
-                f"Step {step.get('step_number', '?')}: "
-                f"{step.get('transformation', '')}",
+                f"Step {step_no}: {title}",
                 expanded=True,
             ):
 
-                col1, col2 = st.columns(2)
+                c1, c2 = st.columns(2)
 
-                with col1:
+                with c1:
 
-                    st.markdown(
-                        "**Reaction class**"
-                    )
+                    st.markdown("### Reactants")
 
-                    st.write(
-                        step.get(
-                            "reaction_class",
-                            "N/A",
+                    for item in step.get(
+                        "reactants",
+                        [],
+                    ):
+                        st.write(
+                            "• "
+                            + str(item)
                         )
-                    )
 
-                    st.markdown(
-                        "**Reagents**"
-                    )
+                    st.markdown("### Reagents")
 
-                    reagents = step.get(
+                    for item in step.get(
                         "reagents",
                         [],
-                    )
-
-                    if isinstance(reagents, list):
+                    ):
                         st.write(
-                            ", ".join(reagents)
+                            "• "
+                            + str(item)
                         )
-                    else:
-                        st.write(reagents)
 
-                    st.markdown(
-                        "**Solvent**"
-                    )
+                with c2:
+
+                    st.markdown("### Products")
+
+                    for item in step.get(
+                        "products",
+                        [],
+                    ):
+                        st.write(
+                            "• "
+                            + str(item)
+                        )
+
+                    st.markdown("### Conditions")
 
                     st.write(
                         step.get(
-                            "solvent",
-                            "N/A",
+                            "conditions",
+                            "",
                         )
                     )
 
-                with col2:
-
-                    st.markdown(
-                        "**Temperature**"
-                    )
-
-                    st.write(
-                        step.get(
-                            "temperature",
-                            "N/A",
-                        )
-                    )
-
-                    st.markdown(
-                        "**Time**"
-                    )
-
-                    st.write(
-                        step.get(
-                            "time",
-                            "N/A",
-                        )
-                    )
-
-                    st.markdown(
-                        "**Pressure**"
-                    )
-
-                    st.write(
-                        step.get(
-                            "pressure",
-                            "N/A",
-                        )
-                    )
-
-                    st.markdown(
-                        "**Yield**"
-                    )
-
-                    st.write(
-                        step.get(
-                            "yield",
-                            "N/A",
-                        )
-                    )
-
-                st.markdown(
-                    "**Stereochemical changes**"
-                )
+                st.markdown("### Transformation")
 
                 st.write(
                     step.get(
-                        "stereochemical_changes",
-                        "N/A",
+                        "transformation",
+                        "",
                     )
                 )
 
+                if step.get("mechanistic_class"):
+                    st.markdown(
+                        "**Mechanistic class:** "
+                        + str(
+                            step["mechanistic_class"]
+                        )
+                    )
+
+                if step.get("confidence") is not None:
+
+                    st.progress(
+                        max(
+                            0.0,
+                            min(
+                                1.0,
+                                float(
+                                    step["confidence"]
+                                ),
+                            ),
+                        )
+                    )
+
+        # -------------------------------------------------
+        # Named reactions
+        # -------------------------------------------------
+
+        st.header("3. Named Reactions")
+
+        if named_reactions:
+
+            for nr in named_reactions:
+
                 st.markdown(
-                    "**Confidence / uncertainty**"
+                    f"### {nr.get('name', 'Unknown')}"
                 )
 
                 st.write(
-                    step.get(
-                        "confidence",
-                        "N/A",
+                    nr.get(
+                        "reason",
+                        "",
                     )
                 )
 
-                if step.get("uncertainty"):
-                    st.warning(
-                        step["uncertainty"]
-                    )
+                if nr.get("confidence") is not None:
 
-                if step.get("scheme_png"):
-                    st.image(
-                        step["scheme_png"],
-                        use_container_width=True,
-                    )
-
-    # -----------------------------------------------------
-    # Structures
-    # -----------------------------------------------------
-
-    with tabs[1]:
-
-        for step in route.get("steps", []):
-
-            st.subheader(
-                f"Step {step.get('step_number', '?')}"
-            )
-
-            reactants = step.get(
-                "reactants_smiles",
-                [],
-            )
-
-            products = step.get(
-                "products_smiles",
-                [],
-            )
-
-            col1, col2 = st.columns(2)
-
-            with col1:
-
-                st.markdown("### Reactants")
-
-                if reactants:
-
-                    for smi in reactants:
-                        render_mol(smi)
-
-                else:
-                    st.info(
-                        "No reliable reactant SMILES extracted."
-                    )
-
-            with col2:
-
-                st.markdown("### Products")
-
-                if products:
-
-                    for smi in products:
-                        render_mol(smi)
-
-                else:
-                    st.info(
-                        "No reliable product SMILES extracted."
-                    )
-
-    # -----------------------------------------------------
-    # Named reactions
-    # -----------------------------------------------------
-
-    with tabs[2]:
-
-        for step in route.get("steps", []):
-
-            st.subheader(
-                f"Step {step.get('step_number', '?')}"
-            )
-
-            names = step.get(
-                "named_reactions",
-                [],
-            )
-
-            if not names:
-
-                st.info(
-                    "No strong named-reaction match."
-                )
-
-            else:
-
-                for item in names:
-
-                    if isinstance(item, dict):
-
-                        name = item.get(
-                            "name",
-                            "Candidate",
+                    st.write(
+                        "Confidence: "
+                        + str(
+                            nr["confidence"]
                         )
-
-                        score = item.get(
-                            "score",
-                            "",
-                        )
-
-                        explanation = item.get(
-                            "explanation",
-                            "",
-                        )
-
-                        st.markdown(
-                            f"**{name}** — score: {score}"
-                        )
-
-                        if explanation:
-                            st.write(
-                                explanation
-                            )
-
-                    else:
-
-                        st.write(item)
-
-    # -----------------------------------------------------
-    # Mechanisms
-    # -----------------------------------------------------
-
-    with tabs[3]:
-
-        for step in route.get("steps", []):
-
-            st.subheader(
-                f"Step {step.get('step_number', '?')}"
-            )
-
-            mechanism = step.get(
-                "mechanism"
-            )
-
-            if not mechanism:
-
-                st.info(
-                    "No mechanism generated."
-                )
-                continue
-
-            if isinstance(mechanism, dict):
-
-                for key, value in mechanism.items():
-
-                    st.markdown(
-                        f"**{key.replace('_', ' ').title()}**"
                     )
 
-                    if isinstance(value, list):
+        else:
 
-                        for item in value:
-                            st.write(
-                                f"• {item}"
-                            )
+            st.info(
+                "No strong named-reaction match found."
+            )
 
-                    else:
+        # -------------------------------------------------
+        # Mechanism
+        # -------------------------------------------------
 
-                        st.write(value)
+        st.header("4. Proposed Mechanism")
 
-            else:
-
-                st.write(mechanism)
-
-    # -----------------------------------------------------
-    # Data
-    # -----------------------------------------------------
-
-    with tabs[4]:
-
-        st.json(
-            json_safe(route)
+        mechanism_steps = mechanism.get(
+            "steps",
+            [],
         )
 
-    # -----------------------------------------------------
-    # Downloads
-    # -----------------------------------------------------
+        for item in mechanism_steps:
 
-    with tabs[5]:
+            st.markdown(
+                f"**{item.get('number', '')}. "
+                f"{item.get('title', '')}**"
+            )
 
-        json_data = json.dumps(
-            json_safe(route),
+            st.write(
+                item.get(
+                    "description",
+                    "",
+                )
+            )
+
+            if item.get("electron_flow"):
+                st.markdown(
+                    "**Electron flow:** "
+                    + item["electron_flow"]
+                )
+
+            if item.get("intermediate"):
+                st.markdown(
+                    "**Intermediate:** "
+                    + item["intermediate"]
+                )
+
+        # -------------------------------------------------
+        # Mechanism image
+        # -------------------------------------------------
+
+        try:
+
+            scheme = render_mechanism_scheme(
+                analysis
+            )
+
+            if scheme:
+
+                st.header(
+                    "5. Mechanism Scheme"
+                )
+
+                st.image(
+                    scheme,
+                    use_container_width=True,
+                )
+
+        except Exception as e:
+
+            st.warning(
+                "Mechanism rendering unavailable: "
+                + str(e)
+            )
+
+        # -------------------------------------------------
+        # Cascade
+        # -------------------------------------------------
+
+        try:
+
+            cascade = render_cascade(
+                analysis
+            )
+
+            if cascade:
+
+                st.header(
+                    "6. Reaction Cascade"
+                )
+
+                st.image(
+                    cascade,
+                    use_container_width=True,
+                )
+
+        except Exception as e:
+
+            st.warning(
+                "Cascade rendering unavailable: "
+                + str(e)
+            )
+
+        # -------------------------------------------------
+        # Raw JSON
+        # -------------------------------------------------
+
+        st.header("7. Complete Analysis JSON")
+
+        json_text = json.dumps(
+            analysis,
             indent=2,
             ensure_ascii=False,
         )
 
         st.download_button(
-            "Download JSON Report",
-            data=json_data,
-            file_name="reaction_mechanism_analysis.json",
+            "⬇️ Download JSON Report",
+            data=json_text,
+            file_name="reaction_mechanism_report.json",
             mime="application/json",
+            use_container_width=True,
         )
 
-        if build_pdf:
+        # -------------------------------------------------
+        # PDF
+        # -------------------------------------------------
 
-            try:
+        try:
 
-                pdf_bytes = build_pdf(route)
+            pdf_bytes = build_pdf(
+                analysis
+            )
 
-                if pdf_bytes:
+            if pdf_bytes:
 
-                    st.download_button(
-                        "Download PDF Report",
-                        data=pdf_bytes,
-                        file_name="reaction_mechanism_analysis.pdf",
-                        mime="application/pdf",
-                    )
-
-            except Exception as exc:
-
-                st.error(
-                    f"PDF report generation failed: {exc}"
+                st.download_button(
+                    "⬇️ Download PDF Report",
+                    data=pdf_bytes,
+                    file_name="reaction_mechanism_report.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
                 )
 
-        else:
+        except Exception as e:
 
             st.warning(
-                "PDF generator unavailable."
+                "PDF generation unavailable: "
+                + str(e)
             )
 
-        cascade = route.get(
-            "cascade_png"
-        )
+        # -------------------------------------------------
+        # Diagnostics
+        # -------------------------------------------------
 
-        if cascade:
-
-            st.download_button(
-                "Download Structure Cascade PNG",
-                data=cascade,
-                file_name="structure_cascade.png",
-                mime="image/png",
-            )
-
-    # -----------------------------------------------------
-    # Diagnostics
-    # -----------------------------------------------------
-
-    with tabs[6]:
-
-        st.subheader("Module status")
-
-        if IMPORT_ERRORS:
-
-            for module, error in IMPORT_ERRORS.items():
-
-                st.error(
-                    f"{module}: {error}"
-                )
-
-        else:
-
-            st.success(
-                "All application modules imported successfully."
-            )
-
-        if renderer_status:
+        with st.expander(
+            "AI Provider Diagnostics"
+        ):
 
             try:
 
                 st.json(
-                    renderer_status()
+                    get_provider_status()
                 )
 
-            except Exception as exc:
+            except Exception as e:
 
-                st.warning(
-                    f"Renderer diagnostics unavailable: {exc}"
+                st.write(
+                    str(e)
                 )
 
-        if provider_status:
+    except Exception as e:
 
-            try:
-
-                st.json(
-                    provider_status()
-                )
-
-            except Exception as exc:
-
-                st.warning(
-                    f"Provider diagnostics unavailable: {exc}"
-                )
-
-        st.markdown("### Analysis metadata")
-
-        st.json(
-            route.get(
-                "analysis_metadata",
-                {},
-            )
+        st.error(
+            "Unexpected application error:"
         )
 
-
-# ---------------------------------------------------------
-# Scientific disclaimer
-# ---------------------------------------------------------
-
-st.divider()
-
-st.caption(
-    "Scientific disclaimer: AI-generated structures, reaction assignments, "
-    "atom mappings and mechanisms are proposed interpretations and must be "
-    "independently verified by a qualified chemist using appropriate "
-    "spectroscopic, analytical and literature evidence."
-)
+        st.code(
+            traceback.format_exc()
+        )
