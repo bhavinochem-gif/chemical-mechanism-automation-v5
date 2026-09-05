@@ -1,33 +1,207 @@
-import io, math
-from PIL import Image, ImageDraw, ImageFont
-from rdkit import Chem
-from rdkit.Chem import Draw
+"""
+V5.1 Mechanism Renderer
+Robust RDKit rendering with graceful fallback.
+"""
 
-def _font(size=22):
-    try: return ImageFont.truetype('DejaVuSans.ttf', size)
-    except: return ImageFont.load_default()
+import io
+import base64
+from typing import Optional, Dict, Any
 
-def _mol_img(smiles, size=(420,260)):
-    if not smiles: return None
-    mol=Chem.MolFromSmiles(smiles)
-    if mol is None: return None
-    return Draw.MolToImage(mol, size=size)
+try:
+    from rdkit import Chem
+    RDKIT_AVAILABLE = True
+except Exception as exc:
+    Chem = None
+    RDKIT_AVAILABLE = False
+    RDKIT_ERROR = str(exc)
 
-def render_mechanism_scheme(step, arrows=True):
-    react=step.get('reactants_smiles',[])[:2]; prod=step.get('products_smiles',[])[:2]
-    imgs=[]
-    for s in react: imgs.append(('Reactant', _mol_img(s)))
-    for s in prod: imgs.append(('Product', _mol_img(s)))
-    canvas=Image.new('RGB',(max(900,430*len(imgs)),420),'white'); d=ImageDraw.Draw(canvas)
-    x=10
-    for i,(label,img) in enumerate(imgs):
-        if img:
-            canvas.paste(img,(x,65)); d.text((x,20),f'{label} {i+1}',fill='black',font=_font(20))
-            x += 430
-    if len(imgs)>=2 and arrows:
-        y=200; start=420; end=min(canvas.width-30,start+150)
-        d.line((start,y,end,y),fill='black',width=4)
-        d.polygon([(end,y),(end-18,y-10),(end-18,y+10)],fill='black')
-        d.text((start+20,y-45),step.get('reaction_class','proposed transformation'),fill='black',font=_font(18))
-    out=io.BytesIO(); canvas.save(out,format='PNG'); return out.getvalue()
 
+def _load_draw_module():
+    """
+    Load RDKit drawing only when actually required.
+
+    This prevents an rdMolDraw2D problem from crashing
+    the entire Streamlit application during startup.
+    """
+    try:
+        from rdkit.Chem import Draw
+        return Draw, None
+    except Exception as exc:
+        return None, str(exc)
+
+
+def validate_smiles(smiles: str) -> bool:
+    """Validate a SMILES string."""
+    if not RDKIT_AVAILABLE:
+        return False
+
+    if not smiles:
+        return False
+
+    try:
+        mol = Chem.MolFromSmiles(smiles)
+        return mol is not None
+    except Exception:
+        return False
+
+
+def render_structure(
+    smiles: str,
+    width: int = 500,
+    height: int = 300
+) -> Optional[bytes]:
+    """
+    Render a molecule to PNG.
+
+    Returns:
+        PNG bytes or None if rendering is unavailable.
+    """
+
+    if not RDKIT_AVAILABLE:
+        return None
+
+    Draw, error = _load_draw_module()
+
+    if Draw is None:
+        return None
+
+    try:
+        mol = Chem.MolFromSmiles(smiles)
+
+        if mol is None:
+            return None
+
+        image = Draw.MolToImage(
+            mol,
+            size=(width, height)
+        )
+
+        buffer = io.BytesIO()
+        image.save(buffer, format="PNG")
+
+        return buffer.getvalue()
+
+    except Exception:
+        return None
+
+
+def render_mechanism_scheme(
+    reactant_smiles: str,
+    product_smiles: str,
+    reagent_text: str = "",
+    width: int = 900,
+    height: int = 350
+) -> Optional[bytes]:
+    """
+    Render a simple reaction scheme.
+
+    The renderer intentionally fails gracefully if RDKit's
+    drawing extension is unavailable.
+    """
+
+    if not RDKIT_AVAILABLE:
+        return None
+
+    Draw, error = _load_draw_module()
+
+    if Draw is None:
+        return None
+
+    try:
+        reactant = Chem.MolFromSmiles(reactant_smiles)
+        product = Chem.MolFromSmiles(product_smiles)
+
+        if reactant is None or product is None:
+            return None
+
+        from PIL import Image, ImageDraw, ImageFont
+
+        left = Draw.MolToImage(
+            reactant,
+            size=(350, 280)
+        )
+
+        right = Draw.MolToImage(
+            product,
+            size=(350, 280)
+        )
+
+        canvas = Image.new(
+            "RGB",
+            (width, height),
+            "white"
+        )
+
+        canvas.paste(
+            left,
+            (30, 40)
+        )
+
+        canvas.paste(
+            right,
+            (520, 40)
+        )
+
+        drawing = ImageDraw.Draw(canvas)
+
+        # Reaction arrow
+        y = 175
+
+        drawing.line(
+            (400, y, 500, y),
+            fill="black",
+            width=3
+        )
+
+        drawing.polygon(
+            [
+                (500, y),
+                (485, y - 8),
+                (485, y + 8)
+            ],
+            fill="black"
+        )
+
+        # Reagent text
+        if reagent_text:
+            try:
+                font = ImageFont.load_default()
+
+                drawing.text(
+                    (400, 125),
+                    reagent_text[:80],
+                    fill="black",
+                    font=font
+                )
+            except Exception:
+                pass
+
+        buffer = io.BytesIO()
+        canvas.save(
+            buffer,
+            format="PNG"
+        )
+
+        return buffer.getvalue()
+
+    except Exception:
+        return None
+
+
+def image_to_base64(image_bytes: bytes) -> str:
+    """Convert image bytes to base64."""
+    return base64.b64encode(
+        image_bytes
+    ).decode("utf-8")
+
+
+def renderer_status() -> Dict[str, Any]:
+    """Return renderer diagnostic information."""
+
+    Draw, error = _load_draw_module()
+
+    return {
+        "rdkit_available": RDKIT_AVAILABLE,
+        "drawing_available": Draw is not None,
+        "error": error
+    }
