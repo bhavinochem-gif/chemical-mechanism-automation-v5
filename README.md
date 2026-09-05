@@ -1,72 +1,35 @@
-# Chemical Mechanism Automation V5
+# Chemical Reaction Mechanism Automation V5.2
 
-A Streamlit application for AI-assisted analysis of multistep organic/API synthesis routes from PDF or image files.
+Streamlit application for AI-assisted analysis of multistep synthetic-route PDFs/images.
 
-## V5 workflow
+## V5.2 changes
+- Gemini is the default AI provider.
+- OpenAI remains an optional provider.
+- Uses the current `google-genai` Python SDK.
+- Gemini multimodal input supports route images and structured JSON output.
+- RDKit drawing imports remain lazy to avoid `rdMolDraw2D` startup failures.
+- PDF and JSON reports are downloadable.
 
-```text
-Upload PDF/Image
-      ↓
-PDF page rendering
-      ↓
-Vision AI structure/reagent extraction
-      ↓
-SMILES validation + formula/MW/stereochemistry
-      ↓
-Reaction family + named-reaction candidate scoring
-      ↓
-Reaction-center / atom-mapping caveat
-      ↓
-Proposed mechanistic event sequence
-      ↓
-RDKit structure rendering + mechanism scheme
-      ↓
-Multistep structure cascade
-      ↓
-Professional PDF report + JSON
+Google currently documents a Gemini API free tier with free input/output tokens for eligible models, subject to published rate limits. See Google's pricing and rate-limit documentation before production use.
+
+## Streamlit Secrets
+```toml
+AI_PROVIDER = "gemini"
+GEMINI_API_KEY = "your_gemini_api_key"
+GEMINI_MODEL = "gemini-3.7-flash"
+
+# Optional:
+OPENAI_API_KEY = "your_openai_api_key"
+OPENAI_MODEL = "gpt-5.6-luna"
 ```
 
-## Repository flow
+Never commit API keys to GitHub.
 
-```text
-app.py
- ├── modules/pdf_processor.py
- ├── modules/ai_analyzer.py
- ├── modules/structure_engine.py
- ├── modules/reaction_database.py
- │    └── data/named_reactions.json
- ├── modules/mechanism_engine.py
- ├── modules/mechanism_renderer.py
- ├── modules/cascade_renderer.py
- └── modules/report_generator.py
-```
-
-## GitHub copy/paste setup
-
-1. Create a new GitHub repository, for example `chemical-mechanism-automation-v5`.
-2. Create the folders `modules`, `data`, `outputs`, and `temp`.
-3. Copy each file from this repository into the same path in GitHub.
-4. Add your secret as `OPENAI_API_KEY` in your deployment platform; never commit `.env`.
-5. For Streamlit Cloud, deploy the repository and set the main file to `app.py`.
-6. Install dependencies from `requirements.txt`.
-
-## Local Windows test
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\activate
+## Run
+```bash
 pip install -r requirements.txt
-copy .env.example .env
-# Edit .env and add OPENAI_API_KEY
 streamlit run app.py
 ```
 
-## Important scientific limitation
-
-V5 is an **AI-assisted proposed-mechanism system**. It does not claim that every extracted structure, atom mapping, reaction name, intermediate, or curved arrow is experimentally verified. Exact atom mapping and mechanistic arrows should be reviewed by a chemist before inclusion in GMP/regulatory documentation.
-
-The named-reaction database is intentionally extensible rather than claiming to contain every named reaction ever published. Add entries to `data/named_reactions.json` without changing the core application.
-
-## OpenAI API note
-
-The application uses the Responses API with image inputs and structured JSON output. The current OpenAI documentation supports image input and Structured Outputs through the Responses API. See the official documentation for current model/API details.
+## Scientific limitation
+AI-generated structures, reaction classes, named reactions and mechanisms are proposals. Verify structures, stereochemistry, atom mapping and mechanisms independently before development, regulatory, safety or manufacturing use.
