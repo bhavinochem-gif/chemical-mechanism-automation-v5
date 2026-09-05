@@ -1,39 +1,137 @@
-"""RDKit structure utilities. Drawing is intentionally lazy-loaded."""
-from rdkit import Chem
-from rdkit.Chem import Descriptors, rdMolDescriptors
+from typing import Any, Dict
 
-def describe_smiles(smiles):
-    if not smiles:
-        return None
-    try:
-        mol = Chem.MolFromSmiles(smiles)
-    except Exception as exc:
-        return {'smiles': smiles, 'valid': False, 'error': str(exc)}
-    if mol is None:
-        return {'smiles': smiles, 'valid': False}
-    try:
-        Chem.AssignStereochemistry(mol, cleanIt=True, force=True)
+try:
+    from rdkit import Chem
+    from rdkit.Chem import Descriptors
+    RDKIT_AVAILABLE = True
+except Exception:
+    Chem = None
+    Descriptors = None
+    RDKIT_AVAILABLE = False
+
+
+def validate_smiles(
+    smiles: str,
+):
+
+    if not RDKIT_AVAILABLE:
         return {
-            'smiles': smiles,
-            'valid': True,
-            'canonical_smiles': Chem.MolToSmiles(mol, isomericSmiles=True),
-            'formula': rdMolDescriptors.CalcMolFormula(mol),
-            'mw': round(Descriptors.MolWt(mol), 4),
-            'formal_charge': Chem.GetFormalCharge(mol),
-            'heavy_atoms': mol.GetNumHeavyAtoms(),
-            'stereocenters': len(Chem.FindMolChiralCenters(mol, includeUnassigned=True)),
+            "valid": False,
+            "error":
+                "RDKit unavailable.",
         }
-    except Exception as exc:
-        return {'smiles': smiles, 'valid': False, 'error': str(exc)}
 
-def enrich_step(step):
-    reactants = step.get('reactants_smiles', []) or []
-    products = step.get('products_smiles', []) or []
-    step['reactant_details'] = [describe_smiles(s) for s in reactants]
-    step['product_details'] = [describe_smiles(s) for s in products]
-    step['invalid_smiles'] = [
-        d['smiles'] for d in step['reactant_details'] + step['product_details']
-        if d and not d.get('valid', False)
-    ]
-    step['atom_mapping_note'] = 'Exact atom mapping is not claimed in V5.2. Reaction-center and electron-flow statements are proposals unless independently verified.'
-    return step
+    if not smiles:
+        return {
+            "valid": False,
+            "error":
+                "Empty SMILES.",
+        }
+
+    try:
+
+        mol = Chem.MolFromSmiles(
+            smiles
+        )
+
+        if mol is None:
+            return {
+                "valid": False,
+                "error":
+                    "Invalid SMILES.",
+            }
+
+        formula = ""
+
+        try:
+
+            from rdkit.Chem import rdMolDescriptors
+
+            formula = (
+                rdMolDescriptors
+                .CalcMolFormula(mol)
+            )
+
+        except Exception:
+            pass
+
+        return {
+            "valid": True,
+            "canonical_smiles":
+                Chem.MolToSmiles(
+                    mol,
+                    isomericSmiles=True,
+                ),
+            "formula":
+                formula,
+            "molecular_weight":
+                round(
+                    Descriptors.MolWt(
+                        mol
+                    ),
+                    4,
+                ),
+            "heavy_atoms":
+                mol.GetNumHeavyAtoms(),
+        }
+
+    except Exception as e:
+
+        return {
+            "valid": False,
+            "error": str(e),
+        }
+
+
+def enrich_structures(
+    analysis: Dict[str, Any],
+):
+
+    for step in analysis.get(
+        "steps",
+        [],
+    ):
+
+        reactant_info = []
+
+        for smiles in step.get(
+            "reactant_smiles",
+            [],
+        ):
+
+            info = validate_smiles(
+                smiles
+            )
+
+            info["input_smiles"] = smiles
+
+            reactant_info.append(
+                info
+            )
+
+        product_info = []
+
+        for smiles in step.get(
+            "product_smiles",
+            [],
+        ):
+
+            info = validate_smiles(
+                smiles
+            )
+
+            info["input_smiles"] = smiles
+
+            product_info.append(
+                info
+            )
+
+        step[
+            "validated_reactants"
+        ] = reactant_info
+
+        step[
+            "validated_products"
+        ] = product_info
+
+    return analysis
