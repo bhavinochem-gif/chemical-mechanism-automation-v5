@@ -1,382 +1,123 @@
-import json
-import os
-import traceback
-from datetime import datetime
-
+import json, os
 import streamlit as st
+from modules.pdf_processor import extract_pages
+from modules.ai_analyzer import analyze_route
+from modules.structure_engine import enrich_step
+from modules.reaction_database import load_database, identify_named_reactions
+from modules.mechanism_engine import build_mechanism
+from modules.mechanism_renderer import render_mechanism_scheme, render_structure, renderer_status
+from modules.cascade_renderer import render_cascade
+from modules.report_generator import build_pdf
 
-APP_NAME = "Chemical Reaction Mechanism Automation"
-APP_VERSION = "5.1.1"
+APP_VERSION='5.2.0'
+st.set_page_config(page_title='Chemical Reaction Mechanism Automation',layout='wide')
 
-st.set_page_config(page_title=f"{APP_NAME} V{APP_VERSION}", page_icon="⚗️", layout="wide")
-
-# Safe/lazy module imports: one optional native dependency must not stop the whole app.
-try:
-    from modules.pdf_processor import extract_pages
-    PDF_OK, PDF_ERR = True, ""
-except Exception as e:
-    PDF_OK, PDF_ERR = False, str(e)
-
-try:
-    from modules.ai_analyzer import analyze_route
-    AI_OK, AI_ERR = True, ""
-except Exception as e:
-    AI_OK, AI_ERR = False, str(e)
-
-try:
-    from modules.structure_engine import enrich_step
-    STRUCT_OK, STRUCT_ERR = True, ""
-except Exception as e:
-    STRUCT_OK, STRUCT_ERR = False, str(e)
-
-try:
-    from modules.reaction_database import identify_named_reactions
-    RXN_OK, RXN_ERR = True, ""
-except Exception as e:
-    RXN_OK, RXN_ERR = False, str(e)
-
-try:
-    from modules.mechanism_engine import build_mechanism
-    MECH_OK, MECH_ERR = True, ""
-except Exception as e:
-    MECH_OK, MECH_ERR = False, str(e)
-
-try:
-    from modules.mechanism_renderer import render_mechanism_scheme, renderer_status
-    RENDER_OK, RENDER_ERR = True, ""
-except Exception as e:
-    RENDER_OK, RENDER_ERR = False, str(e)
-
-try:
-    from modules.cascade_renderer import render_cascade
-    CASCADE_OK, CASCADE_ERR = True, ""
-except Exception as e:
-    CASCADE_OK, CASCADE_ERR = False, str(e)
-
-try:
-    from modules.report_generator import build_pdf_report
-    REPORT_OK, REPORT_ERR = True, ""
-except Exception as e:
-    REPORT_OK, REPORT_ERR = False, str(e)
-
-
-def get_secret(name: str, default=None):
+def secret(name, default=None):
     try:
-        value = st.secrets.get(name)
-        if value:
-            return value
-    except Exception:
-        pass
+        if name in st.secrets: return st.secrets[name]
+    except Exception: pass
     return os.getenv(name, default)
 
-
 def json_safe(obj):
-    if isinstance(obj, dict):
-        return {str(k): json_safe(v) for k, v in obj.items() if k not in {"image", "mechanism_image", "cascade_image"}}
-    if isinstance(obj, list):
-        return [json_safe(v) for v in obj]
-    if isinstance(obj, bytes):
-        return "<binary image omitted>"
+    if isinstance(obj,dict): return {k:json_safe(v) for k,v in obj.items() if k not in {'image','image_bytes'}}
+    if isinstance(obj,list): return [json_safe(v) for v in obj]
     return obj
 
+st.title('Chemical Reaction Mechanism Automation')
+st.caption(f'Version {APP_VERSION} — Gemini Free Tier default; OpenAI optional')
 
-def render_mol(smiles):
-    if not smiles or not RENDER_OK:
-        return None
-    try:
-        from modules.mechanism_renderer import render_structure
-        return render_structure(smiles)
-    except Exception:
-        return None
-
-
-# ---------------- Sidebar ----------------
 with st.sidebar:
-    st.title("⚗️ Mechanism Automation")
-    st.caption(f"Version {APP_VERSION}")
-    st.divider()
+    st.header('AI settings')
+    provider=st.selectbox('AI provider',['gemini','openai'],index=0)
+    if provider=='gemini':
+        model=st.text_input('Gemini model', secret('GEMINI_MODEL','gemini-3.7-flash'))
+        api_key=secret('GEMINI_API_KEY')
+    else:
+        model=st.text_input('OpenAI model', secret('OPENAI_MODEL','gpt-5.6-luna'))
+        api_key=secret('OPENAI_API_KEY')
+    detail=st.selectbox('Image detail',['high','auto','low'],index=0)
+    render_arrows=st.checkbox('Render reaction arrows',True)
+    named=st.checkbox('Identify named reactions',True)
+    mechanisms=st.checkbox('Generate proposed mechanisms',True)
+    cascade=st.checkbox('Generate structure cascade',True)
+    diagnostics=st.checkbox('Technical diagnostics',False)
 
-    model = st.text_input("OpenAI model", value=get_secret("OPENAI_MODEL", "gpt-5.6-luna"))
-    detail = st.selectbox("Image detail", ["high", "auto", "low"], index=0)
-    render_arrows = st.checkbox("Render reaction arrows", True)
-    named_rxn = st.checkbox("Identify named reactions", True)
-    mechanisms = st.checkbox("Generate proposed mechanisms", True)
-    cascade = st.checkbox("Generate structure cascade", True)
-    debug = st.checkbox("Show technical diagnostics", False)
+if provider=='gemini':
+    if not api_key:
+        st.info('Add GEMINI_API_KEY in Streamlit Secrets. Gemini Free Tier supports free input/output tokens within its published limits.')
+else:
+    if not api_key: st.warning('Add OPENAI_API_KEY in Streamlit Secrets.')
 
-    st.divider()
-    st.subheader("System")
-    for label, ok in [
-        ("PDF/image processor", PDF_OK),
-        ("AI analyzer", AI_OK),
-        ("Structure engine", STRUCT_OK),
-        ("Reaction database", RXN_OK),
-        ("Mechanism engine", MECH_OK),
-        ("Mechanism renderer", RENDER_OK),
-        ("Cascade renderer", CASCADE_OK),
-        ("PDF report", REPORT_OK),
-    ]:
-        (st.success if ok else st.warning)(f"{label} {'✓' if ok else '—'}")
-
-
-st.title("⚗️ Automated Chemical Reaction Mechanism Analysis")
-st.markdown(
-    "Upload a reaction scheme or synthesis-route PDF/image to extract structures, conditions, "
-    "reaction classes, named-reaction candidates and proposed mechanisms."
-)
-st.info("Mechanistic output is an AI-assisted proposal. Verify structures, atom mapping, stereochemistry and mechanisms before scientific or regulated use.")
-
-api_key = get_secret("OPENAI_API_KEY")
-if not api_key:
-    st.error("OPENAI_API_KEY is not configured. Add it in Streamlit Cloud → Manage app → Settings → Secrets.")
-    st.code('OPENAI_API_KEY = "sk-..."\nOPENAI_MODEL = "gpt-5.6-luna"')
-    st.stop()
-
-uploaded = st.file_uploader(
-    "Upload synthesis route PDF or image",
-    type=["pdf", "png", "jpg", "jpeg", "tif", "tiff"],
-)
-
-if uploaded is None:
-    st.info("Upload a file to begin.")
-    st.stop()
-
-st.success(f"Uploaded: {uploaded.name} ({uploaded.size / 1024 / 1024:.2f} MB)")
-
-if not PDF_OK:
-    st.error(f"PDF/image processor failed to load: {PDF_ERR}")
-    st.stop()
-
-try:
-    pages = extract_pages(uploaded.getvalue(), uploaded.name)
-except Exception as e:
-    st.error(f"Could not read the uploaded file: {e}")
-    st.exception(e)
-    st.stop()
-
-st.success(f"Loaded {len(pages)} page(s).")
-
-preview_cols = st.columns(min(3, max(1, len(pages))))
-for i, page in enumerate(pages[:3]):
-    with preview_cols[i]:
-        st.image(page["image"], caption=f"Page {page.get('page_number', i + 1)}", use_container_width=True)
-
-if st.button("🚀 Analyze complete route", type="primary", use_container_width=True):
-    if not AI_OK:
-        st.error(f"AI analyzer failed to load: {AI_ERR}")
-        st.stop()
-
-    progress = st.progress(0)
-    status = st.empty()
-
+uploaded=st.file_uploader('Upload synthesis route PDF or image',type=['pdf','png','jpg','jpeg','tif','tiff'])
+if uploaded:
     try:
-        status.info("1/7 — Sending route images for structure/reaction extraction…")
-        progress.progress(10)
-        route = analyze_route(pages, model=model, detail=detail, api_key=api_key)
+        pages=extract_pages(uploaded.getvalue(),uploaded.name)
+        st.success(f'{len(pages)} page(s) extracted.')
+        with st.expander('Preview'):
+            for p in pages: st.image(p['image'],caption=f"Page {p['page_number']}",use_container_width=True)
+    except Exception as exc:
+        st.error(f'File extraction failed: {exc}'); pages=[]
+else: pages=[]
 
-        if not isinstance(route, dict):
-            raise RuntimeError("AI returned an unexpected result format.")
-
-        steps = route.get("steps", [])
-        if not isinstance(steps, list):
-            steps = []
-            route["steps"] = steps
-
-        status.info("2/7 — Validating structures with RDKit…")
-        progress.progress(30)
-        for i, step in enumerate(steps, 1):
-            if not isinstance(step, dict):
-                steps[i - 1] = {"step_number": i, "transformation": str(step), "reactants_smiles": [], "products_smiles": []}
-                step = steps[i - 1]
-            step["step_number"] = step.get("step_number", i)
-            if STRUCT_OK:
-                enrich_step(step)
-
-        status.info("3/7 — Matching named-reaction candidates…")
-        progress.progress(45)
-        if named_rxn and RXN_OK:
-            for step in steps:
-                try:
-                    step["named_reactions"] = identify_named_reactions(step)
-                except Exception as e:
-                    step["named_reactions"] = []
-                    step["named_reaction_error"] = str(e)
-        else:
-            for step in steps:
-                step["named_reactions"] = []
-
-        status.info("4/7 — Building proposed mechanisms…")
-        progress.progress(60)
-        if mechanisms and MECH_OK:
-            for step in steps:
-                try:
-                    step["mechanism"] = build_mechanism(step)
-                except Exception as e:
-                    step["mechanism"] = {"status": "ERROR", "overview": str(e), "events": []}
-        else:
-            for step in steps:
-                step["mechanism"] = {"status": "NOT_REQUESTED", "overview": "Mechanism generation disabled.", "events": []}
-
-        status.info("5/7 — Rendering reaction schemes…")
-        progress.progress(75)
-        if render_arrows and RENDER_OK:
-            for step in steps:
-                try:
-                    step["mechanism_image"] = render_mechanism_scheme(step, arrows=True)
-                except Exception as e:
-                    step["mechanism_image"] = None
-                    step["render_error"] = str(e)
-
-        status.info("6/7 — Rendering structure cascade…")
-        progress.progress(88)
-        if cascade and CASCADE_OK:
-            try:
-                route["cascade_image"] = render_cascade(route)
-            except Exception as e:
-                route["cascade_image"] = None
-                route["cascade_error"] = str(e)
-
-        route["application"] = APP_NAME
-        route["version"] = APP_VERSION
-        route["source_file"] = uploaded.name
-        route["analysis_timestamp"] = datetime.now().isoformat(timespec="seconds")
-        route["scientific_status"] = "AI-assisted proposed interpretation"
-
-        st.session_state.route = route
-        st.session_state.source_name = uploaded.name
-
-        status.success("7/7 — Analysis completed.")
-        progress.progress(100)
-
-    except Exception as e:
-        status.error("Analysis failed.")
-        st.error(f"{type(e).__name__}: {e}")
-        with st.expander("Technical traceback"):
-            st.code(traceback.format_exc())
+if st.button('Analyze synthesis route',type='primary',disabled=not pages):
+    if not api_key:
+        st.error(f'{provider.upper()} API key is missing. Add it to Streamlit Secrets.')
         st.stop()
+    try:
+        with st.spinner(f'Analyzing with {provider}...'):
+            route=analyze_route(pages,model=model,detail=detail,api_key=api_key,provider=provider)
+            db=load_database()
+            for step in route.get('steps',[]):
+                enrich_step(step)
+                if named: step['named_reactions']=identify_named_reactions(step,db)
+                if mechanisms: step['mechanism']=build_mechanism(step)
+            route['_provider']=provider; route['_model']=model
+            st.session_state.route=route
+            st.session_state.route_pdf=build_pdf(route)
+            st.success('Analysis completed.')
+    except Exception as exc:
+        st.error(f'Analysis failed: {exc}')
 
-
-route = st.session_state.get("route")
-if not route:
-    st.stop()
-
-steps = route.get("steps", [])
-
-# ---------------- Results tabs ----------------
-tabs = st.tabs(["Route", "Structures", "Named Reactions", "Mechanisms", "Data", "Downloads", "Diagnostics"])
-
-with tabs[0]:
-    st.header(route.get("route_title", "Synthetic route"))
-    st.write(route.get("route_summary", ""))
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Steps", len(steps))
-    c2.metric("Source", st.session_state.get("source_name", "uploaded file"))
-    c3.metric("Status", "Proposed / review required")
-
-    for step in steps:
-        st.subheader(f"Step {step.get('step_number', '?')}: {step.get('transformation', 'Transformation')}")
-        st.write(step.get("conditions_text", ""))
-        st.caption(f"Reaction class: {step.get('reaction_class', 'unknown')} | Confidence: {step.get('confidence', 'unknown')}")
-        left, right = st.columns(2)
-        with left:
-            st.markdown("**Reactants**")
-            for smi in step.get("reactants_smiles", []) or []:
-                st.code(smi)
-        with right:
-            st.markdown("**Products**")
-            for smi in step.get("products_smiles", []) or []:
-                st.code(smi)
-        st.divider()
-
-with tabs[1]:
-    st.header("Structure information")
-    for step in steps:
-        st.subheader(f"Step {step.get('step_number', '?')}")
-        left, right = st.columns(2)
-        with left:
-            st.markdown("**Reactants**")
-            for smi, details in zip(step.get("reactants_smiles", []) or [], step.get("reactant_details", []) or []):
-                img = render_mol(smi)
-                if img:
-                    st.image(img, use_container_width=True)
-                st.code(smi)
-                if details:
-                    st.json(details)
-        with right:
-            st.markdown("**Products**")
-            for smi, details in zip(step.get("products_smiles", []) or [], step.get("product_details", []) or []):
-                img = render_mol(smi)
-                if img:
-                    st.image(img, use_container_width=True)
-                st.code(smi)
-                if details:
-                    st.json(details)
-
-with tabs[2]:
-    st.header("Named-reaction candidates")
-    for step in steps:
-        st.markdown(f"### Step {step.get('step_number', '?')}")
-        candidates = step.get("named_reactions", []) or []
-        if not candidates:
-            st.info("No high-confidence database match.")
-        for c in candidates:
-            score = c.get("score", 0)
-            st.markdown(f"**{c.get('name', 'Unknown')}** — {float(score):.0%}")
-            st.write(c.get("reason", ""))
-
-with tabs[3]:
-    st.header("Proposed mechanisms")
-    for step in steps:
-        st.markdown(f"## Step {step.get('step_number', '?')}: {step.get('transformation', '')}")
-        mech = step.get("mechanism", {}) or {}
-        st.write(mech.get("overview", ""))
-        for i, event in enumerate(mech.get("events", []) or [], 1):
-            st.markdown(f"**{i}. {event.get('title', 'Mechanistic event')}**")
-            st.write(event.get("description", ""))
-            if event.get("electron_flow"):
-                st.caption("Electron flow: " + event["electron_flow"])
-        if step.get("mechanism_image"):
-            st.image(step["mechanism_image"], use_container_width=True)
-        st.warning("Exact atom mapping and curved-arrow placement should be chemically verified.")
-
-with tabs[4]:
-    st.json(json_safe(route))
-
-with tabs[5]:
-    st.header("Downloads")
-    pdf_error = None
-    if REPORT_OK:
-        try:
-            pdf_bytes = build_pdf_report(route, st.session_state.get("source_name", "route"))
-            st.download_button("📄 Download PDF report", pdf_bytes, "chemical_mechanism_report_v5_1_1.pdf", "application/pdf", use_container_width=True)
-        except Exception as e:
-            pdf_error = str(e)
-    if pdf_error:
-        st.error(f"PDF generation failed: {pdf_error}")
-
-    json_bytes = json.dumps(json_safe(route), indent=2, ensure_ascii=False, default=str).encode("utf-8")
-    st.download_button("🧾 Download JSON analysis", json_bytes, "chemical_mechanism_analysis_v5_1_1.json", "application/json", use_container_width=True)
-
-with tabs[6]:
-    st.header("Diagnostics")
-    st.write({
-        "python_version": os.sys.version,
-        "app_version": APP_VERSION,
-        "api_key_detected": bool(api_key),
-        "PDF_OK": PDF_OK,
-        "AI_OK": AI_OK,
-        "STRUCT_OK": STRUCT_OK,
-        "RXN_OK": RXN_OK,
-        "MECH_OK": MECH_OK,
-        "RENDER_OK": RENDER_OK,
-        "CASCADE_OK": CASCADE_OK,
-        "REPORT_OK": REPORT_OK,
-    })
-    if RENDER_OK and renderer_status:
-        try:
-            st.json(renderer_status())
-        except Exception as e:
-            st.error(str(e))
+route=st.session_state.get('route')
+if route:
+    tabs=st.tabs(['Route','Structures','Named Reactions','Mechanisms','Data','Downloads','Diagnostics'])
+    with tabs[0]:
+        st.subheader(route.get('route_title','Synthetic Route')); st.write(route.get('route_summary',''))
+        for s in route.get('steps',[]):
+            st.markdown(f"### Step {s.get('step_number')}: {s.get('transformation')}")
+            st.write(f"**Class:** {s.get('reaction_class','')}")
+            st.write(f"**Reagents:** {', '.join(s.get('reagents',[]) or [])}")
+            st.write(f"**Conditions:** {s.get('conditions_text','')}")
+            st.write(f"**Confidence:** {s.get('confidence','')} — {s.get('uncertainty','')}")
+    with tabs[1]:
+        for s in route.get('steps',[]):
+            st.markdown(f"**Step {s.get('step_number')}**")
+            cols=st.columns(4)
+            for i,smiles in enumerate((s.get('reactants_smiles',[]) or [])[:2]+(s.get('products_smiles',[]) or [])[:2]):
+                with cols[i]:
+                    st.code(smiles,language='text')
+                    b=render_structure(smiles)
+                    if b: st.image(b)
+    with tabs[2]:
+        for s in route.get('steps',[]):
+            st.markdown(f"**Step {s.get('step_number')}**")
+            st.json(s.get('named_reactions',[]))
+    with tabs[3]:
+        for s in route.get('steps',[]):
+            st.markdown(f"**Step {s.get('step_number')}**")
+            st.json(s.get('mechanism',{}))
+            if render_arrows:
+                st.image(render_mechanism_scheme(s,arrows=True),use_container_width=True)
+    with tabs[4]:
+        st.json(json_safe(route))
+    with tabs[5]:
+        if cascade:
+            st.image(render_cascade(route),use_container_width=True)
+        st.download_button('Download PDF report',data=st.session_state.route_pdf,file_name='chemical_reaction_mechanism_report_v5.2.pdf',mime='application/pdf')
+        st.download_button('Download JSON report',data=json.dumps(json_safe(route),indent=2).encode(),file_name='chemical_reaction_mechanism_report_v5.2.json',mime='application/json')
+    with tabs[6]:
+        st.json({'provider':route.get('_provider'),'model':route.get('_model'),'renderer':renderer_status()})
+        if diagnostics: st.write('RDKit and renderer diagnostics are shown above.')
 
 st.divider()
-st.caption("Scientific disclaimer: AI-assisted structures and mechanisms are proposals and require qualified chemical review before process-development, publication, regulatory or GMP use.")
+st.caption('Scientific disclaimer: AI output is a proposed interpretation. Verify structures, stereochemistry, atom mapping, reaction mechanisms and conditions experimentally before scientific, quality, regulatory or manufacturing use.')
