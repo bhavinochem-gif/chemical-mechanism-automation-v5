@@ -1,16 +1,122 @@
-import json, os, re
+import json
+from pathlib import Path
 
-def load_database(path=None):
-    path = path or os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'named_reactions.json')
-    with open(path, encoding='utf-8') as f: return json.load(f)
 
-def identify_named_reactions(step, db):
-    text = ' '.join([str(step.get('transformation','')), str(step.get('reaction_class','')), str(step.get('conditions_text','')), ' '.join(map(str, step.get('reagents',[]) or []))]).lower()
-    results=[]
-    for rxn in db:
-        aliases = rxn.get('aliases', []) or []
-        hits=[a for a in aliases if a.lower() in text]
-        reagent_hits=[r for r in rxn.get('reagents',[]) or [] if r.lower() in text]
-        score=min(100, len(hits)*45 + len(reagent_hits)*15)
-        if score: results.append({'name':rxn.get('name','Unknown'),'score':score,'evidence':hits+reagent_hits,'description':rxn.get('description','')})
-    return sorted(results,key=lambda x:x['score'],reverse=True)[:5]
+DATA_FILE = (
+    Path(__file__).resolve().parent.parent
+    / "data"
+    / "named_reactions.json"
+)
+
+
+def load_database():
+
+    if not DATA_FILE.exists():
+        return []
+
+    try:
+
+        with open(
+            DATA_FILE,
+            "r",
+            encoding="utf-8",
+        ) as f:
+
+            return json.load(f)
+
+    except Exception:
+        return []
+
+
+def identify_named_reactions(
+    analysis,
+):
+
+    database = load_database()
+
+    results = []
+
+    for step in analysis.get(
+        "steps",
+        [],
+    ):
+
+        combined = " ".join(
+            [
+                str(
+                    step.get(
+                        "transformation",
+                        "",
+                    )
+                ),
+                str(
+                    step.get(
+                        "mechanistic_class",
+                        "",
+                    )
+                ),
+                " ".join(
+                    map(
+                        str,
+                        step.get(
+                            "reagents",
+                            [],
+                        ),
+                    )
+                ),
+                str(
+                    step.get(
+                        "conditions",
+                        "",
+                    )
+                ),
+            ]
+        ).lower()
+
+        for reaction in database:
+
+            keywords = [
+                str(x).lower()
+                for x in reaction.get(
+                    "keywords",
+                    [],
+                )
+            ]
+
+            matches = [
+                x
+                for x in keywords
+                if x in combined
+            ]
+
+            if matches:
+
+                results.append(
+                    {
+                        "step_number":
+                            step.get(
+                                "step_number"
+                            ),
+                        "name":
+                            reaction.get(
+                                "name",
+                                "Unknown",
+                            ),
+                        "reason":
+                            (
+                                "Keyword evidence: "
+                                + ", ".join(
+                                    matches
+                                )
+                            ),
+                        "confidence":
+                            min(
+                                0.95,
+                                0.50
+                                + 0.10
+                                * len(matches),
+                            ),
+                    }
+                )
+
+    return results
