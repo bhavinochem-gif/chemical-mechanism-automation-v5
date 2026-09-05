@@ -1,8 +1,8 @@
-streamlit==1.50.0
-rdkit==2025.09.1
+streamlit
+rdkit==2026.3.6
 openai
 python-dotenv
-pymupdf
+PyMuPDF
 Pillow
 reportlab
 pandas
