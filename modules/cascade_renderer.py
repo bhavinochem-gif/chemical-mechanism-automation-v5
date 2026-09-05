@@ -1,44 +1,159 @@
-"""Structure cascade renderer with lazy RDKit Draw import."""
 import io
+
 from PIL import Image, ImageDraw, ImageFont
-from rdkit import Chem
 
-def _load_draw():
-    try:
-        from rdkit.Chem import Draw
-        return Draw
-    except Exception:
-        return None
 
-def _font(size=18):
+def _font(size=22):
+
     try:
-        return ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', size)
+        return ImageFont.truetype(
+            "DejaVuSans.ttf",
+            size,
+        )
     except Exception:
         return ImageFont.load_default()
 
-def render_cascade(route):
-    steps = route.get('steps', []) or []
-    draw = _load_draw(); box_w, box_h = 360, 340
-    canvas = Image.new('RGB', (max(900, box_w * max(1, len(steps))), box_h), 'white')
-    d = ImageDraw.Draw(canvas); font = _font(18)
-    for i, step in enumerate(steps):
-        smis = step.get('products_smiles') or step.get('reactants_smiles') or []
-        smi = smis[0] if smis else ''; x = i * box_w + 10
-        d.text((x, 15), f"Step {step.get('step_number', i + 1)}", fill='black', font=font)
-        if draw and smi:
-            try:
-                mol = Chem.MolFromSmiles(smi)
-                if mol:
-                    canvas.paste(draw.MolToImage(mol, size=(320, 230)), (x, 50))
-                else:
-                    d.text((x, 150), 'Invalid SMILES', fill='black', font=font)
-            except Exception:
-                d.text((x, 150), 'Structure drawing unavailable', fill='black', font=font)
-        else:
-            d.text((x, 140), 'RDKit drawing unavailable', fill='black', font=font)
-            if smi: d.text((x, 175), smi[:40], fill='black', font=_font(11))
-        if i < len(steps) - 1:
-            y = 175; start = x + 325; end = x + 350
-            d.line((start, y, end, y), fill='black', width=3)
-            d.polygon([(end, y), (end - 10, y - 7), (end - 10, y + 7)], fill='black')
-    out = io.BytesIO(); canvas.save(out, format='PNG'); return out.getvalue()
+
+def render_cascade(
+    analysis,
+):
+
+    steps = analysis.get(
+        "steps",
+        [],
+    )
+
+    if not steps:
+        return None
+
+    width = max(
+        1200,
+        330 * len(steps),
+    )
+
+    height = 420
+
+    image = Image.new(
+        "RGB",
+        (width, height),
+        "white",
+    )
+
+    draw = ImageDraw.Draw(
+        image
+    )
+
+    title_font = _font(28)
+    body_font = _font(18)
+
+    draw.text(
+        (30, 20),
+        "Synthetic Reaction Cascade",
+        fill="black",
+        font=title_font,
+    )
+
+    x = 40
+
+    for index, step in enumerate(
+        steps
+    ):
+
+        step_no = step.get(
+            "step_number",
+            index + 1,
+        )
+
+        reactants = ", ".join(
+            map(
+                str,
+                step.get(
+                    "reactants",
+                    [],
+                ),
+            )
+        )
+
+        products = ", ".join(
+            map(
+                str,
+                step.get(
+                    "products",
+                    [],
+                ),
+            )
+        )
+
+        draw.rounded_rectangle(
+            (
+                x,
+                100,
+                x + 250,
+                260,
+            ),
+            radius=15,
+            outline="black",
+            width=2,
+        )
+
+        draw.text(
+            (x + 15, 115),
+            f"Step {step_no}",
+            fill="black",
+            font=body_font,
+        )
+
+        draw.text(
+            (x + 15, 150),
+            "Reactants:",
+            fill="black",
+            font=body_font,
+        )
+
+        draw.text(
+            (x + 15, 180),
+            reactants[:25],
+            fill="black",
+            font=body_font,
+        )
+
+        draw.text(
+            (x + 15, 215),
+            "→ "
+            + products[:25],
+            fill="black",
+            font=body_font,
+        )
+
+        if index < len(steps) - 1:
+
+            draw.line(
+                (
+                    x + 260,
+                    180,
+                    x + 315,
+                    180,
+                ),
+                fill="black",
+                width=3,
+            )
+
+            draw.polygon(
+                [
+                    (x + 315, 180),
+                    (x + 295, 170),
+                    (x + 295, 190),
+                ],
+                fill="black",
+            )
+
+        x += 330
+
+    output = io.BytesIO()
+
+    image.save(
+        output,
+        format="PNG",
+    )
+
+    return output.getvalue()
