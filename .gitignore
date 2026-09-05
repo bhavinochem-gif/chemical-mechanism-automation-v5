@@ -1,7 +1,9 @@
 .env
-.venv/
+.env.*
+!.env.example
 __pycache__/
-*.pyc
+*.py[cod]
+.DS_Store
 .streamlit/secrets.toml
 outputs/*
 !outputs/.gitkeep
