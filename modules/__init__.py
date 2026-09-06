@@ -1,1 +1,1 @@
-# Chemical Reaction Mechanism Automation modules
+# V6.0.1 chemistry modules
