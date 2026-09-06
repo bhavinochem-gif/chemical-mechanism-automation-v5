@@ -1,1 +1,118 @@
-
+[
+  {
+    "name": "Suzuki-Miyaura Coupling",
+    "keywords": [
+      "boronic acid",
+      "boronate",
+      "aryl halide",
+      "palladium"
+    ],
+    "description": "cross_coupling"
+  },
+  {
+    "name": "Buchwald-Hartwig Amination",
+    "keywords": [
+      "aryl halide",
+      "amine",
+      "palladium",
+      "base"
+    ],
+    "description": "cross_coupling"
+  },
+  {
+    "name": "Heck Reaction",
+    "keywords": [
+      "aryl halide",
+      "alkene",
+      "palladium"
+    ],
+    "description": "cross_coupling"
+  },
+  {
+    "name": "Sonogashira Coupling",
+    "keywords": [
+      "aryl halide",
+      "terminal alkyne",
+      "palladium",
+      "copper"
+    ],
+    "description": "cross_coupling"
+  },
+  {
+    "name": "Mitsunobu Reaction",
+    "keywords": [
+      "triphenylphosphine",
+      "PPh3",
+      "DIAD",
+      "DEAD",
+      "alcohol"
+    ],
+    "description": "substitution"
+  },
+  {
+    "name": "Grignard Reaction",
+    "keywords": [
+      "magnesium",
+      "RMgX",
+      "carbonyl"
+    ],
+    "description": "carbonyl_addition"
+  },
+  {
+    "name": "Wittig Reaction",
+    "keywords": [
+      "phosphonium ylide",
+      "aldehyde",
+      "ketone",
+      "alkene"
+    ],
+    "description": "olefination"
+  },
+  {
+    "name": "Diels-Alder Reaction",
+    "keywords": [
+      "diene",
+      "dienophile",
+      "cycloaddition"
+    ],
+    "description": "cycloaddition"
+  },
+  {
+    "name": "Aldol Reaction",
+    "keywords": [
+      "enolate",
+      "aldehyde",
+      "ketone",
+      "base"
+    ],
+    "description": "carbonyl_reaction"
+  },
+  {
+    "name": "Baeyer-Villiger Oxidation",
+    "keywords": [
+      "ketone",
+      "peracid",
+      "lactone"
+    ],
+    "description": "oxidation"
+  },
+  {
+    "name": "Fischer Esterification",
+    "keywords": [
+      "carboxylic acid",
+      "alcohol",
+      "ester"
+    ],
+    "description": "acyl_substitution"
+  },
+  {
+    "name": "Boc Deprotection",
+    "keywords": [
+      "Boc",
+      "TFA",
+      "HCl",
+      "acid"
+    ],
+    "description": "deprotection"
+  }
+]
