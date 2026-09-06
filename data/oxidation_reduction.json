@@ -1,0 +1,61 @@
+[
+  {
+    "name": "Primary alcohol oxidation",
+    "keywords": [
+      "primary alcohol",
+      "DMP",
+      "PCC",
+      "TEMPO"
+    ],
+    "description": "aldehyde or acid depending on conditions"
+  },
+  {
+    "name": "Secondary alcohol oxidation",
+    "keywords": [
+      "secondary alcohol",
+      "DMP",
+      "PCC"
+    ],
+    "description": "ketone"
+  },
+  {
+    "name": "Carbonyl reduction",
+    "keywords": [
+      "NaBH4",
+      "LiAlH4",
+      "carbonyl"
+    ],
+    "description": "alcohol"
+  },
+  {
+    "name": "Alkene hydrogenation",
+    "keywords": [
+      "alkene",
+      "H2",
+      "Pd/C",
+      "PtO2",
+      "Raney Ni"
+    ],
+    "description": "alkane"
+  },
+  {
+    "name": "Nitro reduction",
+    "keywords": [
+      "nitro",
+      "H2",
+      "Pd/C",
+      "Fe",
+      "SnCl2"
+    ],
+    "description": "amine"
+  },
+  {
+    "name": "Nitrile reduction",
+    "keywords": [
+      "nitrile",
+      "LiAlH4",
+      "H2"
+    ],
+    "description": "amine"
+  }
+]

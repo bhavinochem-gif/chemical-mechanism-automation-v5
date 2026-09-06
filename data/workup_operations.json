@@ -1,0 +1,44 @@
+[
+  {
+    "name": "Aqueous quench",
+    "keywords": [
+      "quench",
+      "water"
+    ],
+    "description": "Deactivate reactive reagents."
+  },
+  {
+    "name": "Liquid-liquid extraction",
+    "keywords": [
+      "extraction",
+      "extract"
+    ],
+    "description": "Partition between immiscible phases."
+  },
+  {
+    "name": "Brine wash",
+    "keywords": [
+      "brine",
+      "saturated sodium chloride"
+    ],
+    "description": "Assist phase separation and reduce dissolved water."
+  },
+  {
+    "name": "Drying organic phase",
+    "keywords": [
+      "sodium sulfate",
+      "magnesium sulfate",
+      "dry"
+    ],
+    "description": "Remove residual water."
+  },
+  {
+    "name": "pH adjustment",
+    "keywords": [
+      "acidify",
+      "basify",
+      "pH"
+    ],
+    "description": "Control ionization for extraction or precipitation."
+  }
+]

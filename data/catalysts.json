@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Palladium on carbon",
+    "keywords": [
+      "Pd/C",
+      "palladium on carbon"
+    ],
+    "description": "hydrogenation"
+  },
+  {
+    "name": "Pd(PPh3)4",
+    "keywords": [
+      "Pd(PPh3)4",
+      "tetrakis"
+    ],
+    "description": "cross coupling"
+  },
+  {
+    "name": "Palladium acetate",
+    "keywords": [
+      "Pd(OAc)2",
+      "palladium acetate"
+    ],
+    "description": "cross coupling"
+  },
+  {
+    "name": "Copper(I) iodide",
+    "keywords": [
+      "CuI",
+      "copper iodide"
+    ],
+    "description": "alkynyl coupling"
+  },
+  {
+    "name": "Raney nickel",
+    "keywords": [
+      "Raney Ni",
+      "Raney nickel"
+    ],
+    "description": "hydrogenation"
+  },
+  {
+    "name": "Platinum dioxide",
+    "keywords": [
+      "PtO2",
+      "Adams catalyst"
+    ],
+    "description": "hydrogenation"
+  }
+]

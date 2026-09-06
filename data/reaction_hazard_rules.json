@@ -1,0 +1,41 @@
+[
+  {
+    "name": "Hydrogenation",
+    "keywords": [
+      "H2",
+      "hydrogenation",
+      "Pd/C",
+      "PtO2",
+      "Raney Ni"
+    ],
+    "description": "Pressure, flammability and catalyst hazards require process controls."
+  },
+  {
+    "name": "Strong reducing agent",
+    "keywords": [
+      "LiAlH4",
+      "LAH",
+      "NaH"
+    ],
+    "description": "Potentially reactive with water/protic materials."
+  },
+  {
+    "name": "Strong oxidant",
+    "keywords": [
+      "peracid",
+      "DMP",
+      "PCC",
+      "peroxide"
+    ],
+    "description": "Compatibility and exotherm assessment required."
+  },
+  {
+    "name": "Strong acid",
+    "keywords": [
+      "TFA",
+      "HCl",
+      "sulfuric acid"
+    ],
+    "description": "Corrosive and thermal hazard assessment required."
+  }
+]

@@ -1,0 +1,83 @@
+[
+  {
+    "name": "THF",
+    "keywords": [
+      "THF",
+      "tetrahydrofuran"
+    ],
+    "description": "polar aprotic"
+  },
+  {
+    "name": "2-MeTHF",
+    "keywords": [
+      "2-MeTHF",
+      "2-MTHF",
+      "2-methyltetrahydrofuran"
+    ],
+    "description": "ether"
+  },
+  {
+    "name": "DCM",
+    "keywords": [
+      "DCM",
+      "MDC",
+      "dichloromethane"
+    ],
+    "description": "moderately polar"
+  },
+  {
+    "name": "Ethyl acetate",
+    "keywords": [
+      "EtOAc",
+      "ethyl acetate"
+    ],
+    "description": "moderately polar"
+  },
+  {
+    "name": "Methanol",
+    "keywords": [
+      "MeOH",
+      "methanol"
+    ],
+    "description": "polar protic"
+  },
+  {
+    "name": "Ethanol",
+    "keywords": [
+      "EtOH",
+      "ethanol"
+    ],
+    "description": "polar protic"
+  },
+  {
+    "name": "DMSO",
+    "keywords": [
+      "DMSO",
+      "dimethyl sulfoxide"
+    ],
+    "description": "polar aprotic"
+  },
+  {
+    "name": "DMF",
+    "keywords": [
+      "DMF",
+      "dimethylformamide"
+    ],
+    "description": "polar aprotic"
+  },
+  {
+    "name": "Acetonitrile",
+    "keywords": [
+      "MeCN",
+      "acetonitrile"
+    ],
+    "description": "polar aprotic"
+  },
+  {
+    "name": "Toluene",
+    "keywords": [
+      "toluene"
+    ],
+    "description": "nonpolar"
+  }
+]

@@ -1,0 +1,74 @@
+[
+  {
+    "name": "SN2",
+    "keywords": [
+      "primary halide",
+      "alkyl halide",
+      "nucleophile",
+      "mesylate",
+      "tosylate"
+    ],
+    "description": "Backside attack with simultaneous leaving-group departure; inversion at the reacting center."
+  },
+  {
+    "name": "E2",
+    "keywords": [
+      "strong base",
+      "alkyl halide",
+      "elimination"
+    ],
+    "description": "Concerted beta-hydrogen abstraction and leaving-group departure."
+  },
+  {
+    "name": "Hydride Reduction",
+    "keywords": [
+      "NaBH4",
+      "LiAlH4",
+      "hydride",
+      "carbonyl"
+    ],
+    "description": "Hydride transfer to an electrophilic carbonyl followed by protonation."
+  },
+  {
+    "name": "Catalytic Hydrogenation",
+    "keywords": [
+      "H2",
+      "hydrogenation",
+      "Pd/C",
+      "PtO2",
+      "Raney Ni"
+    ],
+    "description": "Surface-mediated hydrogen addition to a reducible unsaturated bond."
+  },
+  {
+    "name": "Boc Deprotection",
+    "keywords": [
+      "Boc",
+      "TFA",
+      "HCl",
+      "acid"
+    ],
+    "description": "Acidic cleavage of a Boc carbamate."
+  },
+  {
+    "name": "Palladium Cross-Coupling",
+    "keywords": [
+      "palladium",
+      "aryl halide",
+      "boronic acid",
+      "amine",
+      "alkyne"
+    ],
+    "description": "Catalytic cycle commonly involving oxidative addition, partner transfer and reductive elimination."
+  },
+  {
+    "name": "Mitsunobu Inversion",
+    "keywords": [
+      "Mitsunobu",
+      "PPh3",
+      "DIAD",
+      "DEAD"
+    ],
+    "description": "Activated alcohol undergoes nucleophilic displacement, commonly with inversion."
+  }
+]

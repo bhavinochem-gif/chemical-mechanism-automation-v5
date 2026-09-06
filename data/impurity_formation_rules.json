@@ -1,0 +1,64 @@
+[
+  {
+    "name": "Over-reduction",
+    "keywords": [
+      "hydrogenation",
+      "H2",
+      "strong reducing agent"
+    ],
+    "description": "Excess reduction can create more-reduced byproducts."
+  },
+  {
+    "name": "Hydrolysis",
+    "keywords": [
+      "ester",
+      "amide",
+      "water",
+      "acid",
+      "base"
+    ],
+    "description": "Susceptible groups can hydrolyze."
+  },
+  {
+    "name": "Epimerization",
+    "keywords": [
+      "base",
+      "acid",
+      "alpha carbonyl",
+      "chiral",
+      "epimer"
+    ],
+    "description": "Stereocenters may epimerize under suitable conditions."
+  },
+  {
+    "name": "Dehalogenation",
+    "keywords": [
+      "aryl halide",
+      "hydrogenation",
+      "Pd/C",
+      "H2"
+    ],
+    "description": "Hydrogenolytic conditions can remove halogen substituents."
+  },
+  {
+    "name": "Oxidative impurity",
+    "keywords": [
+      "air",
+      "oxygen",
+      "oxidation",
+      "peroxide"
+    ],
+    "description": "Exposure can generate oxidized impurities."
+  },
+  {
+    "name": "Desilylation",
+    "keywords": [
+      "TBS",
+      "TIPS",
+      "TBDMS",
+      "fluoride",
+      "acid"
+    ],
+    "description": "Silyl-protected alcohols can lose protecting groups."
+  }
+]

@@ -1,0 +1,67 @@
+[
+  {
+    "name": "Boc",
+    "group": "amine",
+    "installation": [
+      "Boc2O"
+    ],
+    "removal": [
+      "TFA",
+      "HCl"
+    ]
+  },
+  {
+    "name": "Cbz",
+    "group": "amine",
+    "installation": [
+      "Cbz-Cl"
+    ],
+    "removal": [
+      "H2",
+      "Pd/C"
+    ]
+  },
+  {
+    "name": "Fmoc",
+    "group": "amine",
+    "installation": [
+      "Fmoc-Cl"
+    ],
+    "removal": [
+      "piperidine"
+    ]
+  },
+  {
+    "name": "TBS/TBDMS",
+    "group": "alcohol",
+    "installation": [
+      "TBSCl"
+    ],
+    "removal": [
+      "TBAF",
+      "acid"
+    ]
+  },
+  {
+    "name": "TIPS",
+    "group": "alcohol",
+    "installation": [
+      "TIPSCl"
+    ],
+    "removal": [
+      "fluoride",
+      "acid"
+    ]
+  },
+  {
+    "name": "Benzyl ether",
+    "group": "alcohol",
+    "installation": [
+      "BnBr"
+    ],
+    "removal": [
+      "H2",
+      "Pd/C"
+    ]
+  }
+]

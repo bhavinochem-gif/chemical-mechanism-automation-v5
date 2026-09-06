@@ -1,0 +1,46 @@
+[
+  {
+    "name": "Atom balance",
+    "keywords": [
+      "atom balance"
+    ],
+    "description": "Atoms must be conserved except explicitly added/removed species."
+  },
+  {
+    "name": "Charge balance",
+    "keywords": [
+      "charge balance"
+    ],
+    "description": "Formal charge should be consistent."
+  },
+  {
+    "name": "Valence check",
+    "keywords": [
+      "valence"
+    ],
+    "description": "Proposed structures should have reasonable valence."
+  },
+  {
+    "name": "Leaving group check",
+    "keywords": [
+      "leaving group"
+    ],
+    "description": "Substitution/elimination requires plausible leaving group."
+  },
+  {
+    "name": "Nucleophile-electrophile check",
+    "keywords": [
+      "nucleophile",
+      "electrophile"
+    ],
+    "description": "Bond formation should connect plausible partners."
+  },
+  {
+    "name": "Redox consistency",
+    "keywords": [
+      "oxidation",
+      "reduction"
+    ],
+    "description": "Redox assignment must agree with reagents and net changes."
+  }
+]

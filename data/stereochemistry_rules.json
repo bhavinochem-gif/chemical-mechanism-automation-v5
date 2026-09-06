@@ -1,0 +1,37 @@
+[
+  {
+    "name": "SN2 inversion",
+    "keywords": [
+      "SN2",
+      "Mitsunobu"
+    ],
+    "description": "SN2 substitution generally inverts configuration at the reacting stereocenter."
+  },
+  {
+    "name": "Mitsunobu inversion",
+    "keywords": [
+      "Mitsunobu"
+    ],
+    "description": "Alcohol replacement commonly occurs with inversion."
+  },
+  {
+    "name": "Hydrogenation stereochemistry",
+    "keywords": [
+      "hydrogenation",
+      "alkene",
+      "H2"
+    ],
+    "description": "Syn addition at a metal surface can influence relative stereochemistry."
+  },
+  {
+    "name": "Epimerization risk",
+    "keywords": [
+      "epimer",
+      "base",
+      "acid",
+      "alpha carbonyl",
+      "chiral"
+    ],
+    "description": "Activated stereocenters can epimerize under suitable conditions."
+  }
+]

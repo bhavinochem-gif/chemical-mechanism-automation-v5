@@ -1,0 +1,108 @@
+[
+  {
+    "name": "Substitution",
+    "keywords": [
+      "halide",
+      "tosylate",
+      "mesylate",
+      "nucleophile"
+    ],
+    "description": "Replacement of a leaving group by a nucleophile."
+  },
+  {
+    "name": "Acyl Substitution",
+    "keywords": [
+      "acid chloride",
+      "anhydride",
+      "ester",
+      "amide"
+    ],
+    "description": "Nucleophilic substitution at an acyl center."
+  },
+  {
+    "name": "Cross Coupling",
+    "keywords": [
+      "palladium",
+      "nickel",
+      "boronic acid",
+      "boronate",
+      "aryl halide",
+      "alkyne"
+    ],
+    "description": "Transition-metal-catalyzed bond formation between coupling partners."
+  },
+  {
+    "name": "Oxidation",
+    "keywords": [
+      "DMP",
+      "PCC",
+      "PDC",
+      "TEMPO",
+      "oxidation",
+      "peracid"
+    ],
+    "description": "Increase in oxidation state."
+  },
+  {
+    "name": "Reduction",
+    "keywords": [
+      "H2",
+      "hydrogenation",
+      "NaBH4",
+      "LiAlH4",
+      "reduction"
+    ],
+    "description": "Decrease in oxidation state or hydrogenation."
+  },
+  {
+    "name": "Protection",
+    "keywords": [
+      "Boc2O",
+      "Cbz",
+      "Fmoc",
+      "TBS",
+      "TBDMS",
+      "TIPS"
+    ],
+    "description": "Temporary masking of a functional group."
+  },
+  {
+    "name": "Deprotection",
+    "keywords": [
+      "TFA",
+      "HCl",
+      "HF",
+      "TBAF",
+      "hydrogenolysis"
+    ],
+    "description": "Removal of a protecting group."
+  },
+  {
+    "name": "Carbonyl Addition",
+    "keywords": [
+      "Grignard",
+      "organolithium",
+      "NaBH4",
+      "carbonyl"
+    ],
+    "description": "Nucleophilic addition to a carbonyl."
+  },
+  {
+    "name": "Cycloaddition",
+    "keywords": [
+      "Diels-Alder",
+      "cycloaddition"
+    ],
+    "description": "Ring-forming cycloaddition."
+  },
+  {
+    "name": "Olefination",
+    "keywords": [
+      "Wittig",
+      "HWE",
+      "ylide",
+      "phosphonate"
+    ],
+    "description": "Conversion of carbonyl to alkene."
+  }
+]

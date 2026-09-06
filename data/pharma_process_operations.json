@@ -1,0 +1,57 @@
+[
+  {
+    "name": "Charge sequence",
+    "keywords": [
+      "charge",
+      "addition"
+    ],
+    "description": "Record order of additions."
+  },
+  {
+    "name": "Temperature hold",
+    "keywords": [
+      "hold",
+      "temperature",
+      "cool",
+      "heat"
+    ],
+    "description": "Record thermal profile."
+  },
+  {
+    "name": "IPC sampling",
+    "keywords": [
+      "IPC",
+      "in-process",
+      "monitoring"
+    ],
+    "description": "Monitor conversion and impurity profile."
+  },
+  {
+    "name": "Seeded crystallization",
+    "keywords": [
+      "seed",
+      "seeding",
+      "crystallization"
+    ],
+    "description": "Control nucleation and solid form."
+  },
+  {
+    "name": "Salt formation",
+    "keywords": [
+      "salt",
+      "HCl",
+      "sulfate",
+      "mesylate"
+    ],
+    "description": "Convert to defined salt form."
+  },
+  {
+    "name": "Drying",
+    "keywords": [
+      "drying",
+      "vacuum",
+      "LOD"
+    ],
+    "description": "Remove residual solvent/moisture."
+  }
+]

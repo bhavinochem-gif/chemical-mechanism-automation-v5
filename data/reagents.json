@@ -1,0 +1,91 @@
+[
+  {
+    "name": "Sodium borohydride",
+    "keywords": [
+      "NaBH4",
+      "sodium borohydride"
+    ],
+    "description": "reducing agent"
+  },
+  {
+    "name": "Lithium aluminium hydride",
+    "keywords": [
+      "LiAlH4",
+      "LAH"
+    ],
+    "description": "strong reducing agent"
+  },
+  {
+    "name": "Di-tert-butyl dicarbonate",
+    "keywords": [
+      "Boc2O",
+      "Boc anhydride"
+    ],
+    "description": "amine protection"
+  },
+  {
+    "name": "Trifluoroacetic acid",
+    "keywords": [
+      "TFA",
+      "trifluoroacetic acid"
+    ],
+    "description": "acid/deprotection"
+  },
+  {
+    "name": "Hydrochloric acid",
+    "keywords": [
+      "HCl",
+      "hydrochloric acid"
+    ],
+    "description": "acid/salt formation"
+  },
+  {
+    "name": "Dess-Martin periodinane",
+    "keywords": [
+      "DMP",
+      "Dess-Martin"
+    ],
+    "description": "oxidant"
+  },
+  {
+    "name": "PCC",
+    "keywords": [
+      "PCC",
+      "pyridinium chlorochromate"
+    ],
+    "description": "oxidant"
+  },
+  {
+    "name": "Triphenylphosphine",
+    "keywords": [
+      "PPh3",
+      "triphenylphosphine"
+    ],
+    "description": "Mitsunobu reagent"
+  },
+  {
+    "name": "DIAD",
+    "keywords": [
+      "DIAD",
+      "diisopropyl azodicarboxylate"
+    ],
+    "description": "Mitsunobu reagent"
+  },
+  {
+    "name": "Potassium carbonate",
+    "keywords": [
+      "K2CO3",
+      "potassium carbonate"
+    ],
+    "description": "base"
+  },
+  {
+    "name": "Triethylamine",
+    "keywords": [
+      "Et3N",
+      "TEA",
+      "triethylamine"
+    ],
+    "description": "base"
+  }
+]

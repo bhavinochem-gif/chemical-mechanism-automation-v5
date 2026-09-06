@@ -1,0 +1,30 @@
+[
+  {
+    "name": "Intramolecular cyclization",
+    "keywords": [
+      "cyclization",
+      "ring closure",
+      "intramolecular"
+    ],
+    "description": "Intramolecular bond formation creates a ring."
+  },
+  {
+    "name": "SNAr heteroaryl substitution",
+    "keywords": [
+      "heteroaryl fluoride",
+      "heteroaryl chloride",
+      "amine",
+      "alcohol"
+    ],
+    "description": "Addition-elimination substitution at activated heteroaryl center."
+  },
+  {
+    "name": "Cyclocondensation",
+    "keywords": [
+      "diamino",
+      "dicarbonyl",
+      "cyclization"
+    ],
+    "description": "Condensation followed by ring closure."
+  }
+]

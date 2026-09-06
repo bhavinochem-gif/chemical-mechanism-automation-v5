@@ -1,0 +1,39 @@
+[
+  {
+    "name": "Boc removal",
+    "keywords": [
+      "Boc",
+      "TFA",
+      "HCl"
+    ],
+    "description": "Acid-mediated deprotection of Boc-protected amines."
+  },
+  {
+    "name": "Cbz removal",
+    "keywords": [
+      "Cbz",
+      "H2",
+      "Pd/C"
+    ],
+    "description": "Hydrogenolytic cleavage of benzyl carbamate."
+  },
+  {
+    "name": "Fmoc removal",
+    "keywords": [
+      "Fmoc",
+      "piperidine"
+    ],
+    "description": "Base-promoted deprotection."
+  },
+  {
+    "name": "Silyl ether removal",
+    "keywords": [
+      "TBS",
+      "TBDMS",
+      "TIPS",
+      "TBAF",
+      "fluoride"
+    ],
+    "description": "Fluoride or acid cleavage of Si-O bond."
+  }
+]

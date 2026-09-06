@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Crystallization",
+    "keywords": [
+      "crystallization",
+      "crystallisation",
+      "cooling"
+    ],
+    "description": "Selective solid formation based on solubility."
+  },
+  {
+    "name": "Precipitation",
+    "keywords": [
+      "precipitate",
+      "precipitation"
+    ],
+    "description": "Induce solid formation."
+  },
+  {
+    "name": "Filtration",
+    "keywords": [
+      "filter",
+      "filtration"
+    ],
+    "description": "Separate solid from liquid."
+  },
+  {
+    "name": "Activated charcoal",
+    "keywords": [
+      "charcoal",
+      "carbon treatment"
+    ],
+    "description": "Adsorb color/strongly adsorbing impurities."
+  },
+  {
+    "name": "Silica chromatography",
+    "keywords": [
+      "silica",
+      "column chromatography"
+    ],
+    "description": "Separate by adsorption/polarity."
+  },
+  {
+    "name": "Trituration",
+    "keywords": [
+      "trituration"
+    ],
+    "description": "Wash crude solid with selective solvent."
+  }
+]

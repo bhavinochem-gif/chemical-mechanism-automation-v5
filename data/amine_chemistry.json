@@ -1,0 +1,41 @@
+[
+  {
+    "name": "Amine acylation",
+    "keywords": [
+      "amine",
+      "acid chloride",
+      "anhydride",
+      "amide"
+    ],
+    "description": "Nucleophilic acyl substitution."
+  },
+  {
+    "name": "Amine alkylation",
+    "keywords": [
+      "amine",
+      "alkyl halide",
+      "alkylation"
+    ],
+    "description": "Nucleophilic substitution forming C-N."
+  },
+  {
+    "name": "Reductive amination",
+    "keywords": [
+      "amine",
+      "aldehyde",
+      "ketone",
+      "reductive amination"
+    ],
+    "description": "Iminium formation followed by reduction."
+  },
+  {
+    "name": "Amine salt formation",
+    "keywords": [
+      "amine",
+      "HCl",
+      "sulfate",
+      "acid"
+    ],
+    "description": "Protonation and counterion association."
+  }
+]

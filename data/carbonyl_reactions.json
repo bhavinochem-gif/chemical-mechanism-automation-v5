@@ -1,0 +1,54 @@
+[
+  {
+    "name": "Nucleophilic addition",
+    "keywords": [
+      "aldehyde",
+      "ketone",
+      "Grignard",
+      "organolithium",
+      "hydride"
+    ],
+    "description": "Nucleophile adds to carbonyl carbon followed by protonation."
+  },
+  {
+    "name": "Acyl substitution",
+    "keywords": [
+      "acid chloride",
+      "anhydride",
+      "ester",
+      "amide"
+    ],
+    "description": "Addition-elimination at acyl carbon."
+  },
+  {
+    "name": "Aldol",
+    "keywords": [
+      "aldehyde",
+      "ketone",
+      "enolate",
+      "base"
+    ],
+    "description": "Enolate addition to carbonyl; dehydration may follow."
+  },
+  {
+    "name": "Imine formation",
+    "keywords": [
+      "aldehyde",
+      "ketone",
+      "amine",
+      "imine"
+    ],
+    "description": "Condensation through carbinolamine and water elimination."
+  },
+  {
+    "name": "Reductive amination",
+    "keywords": [
+      "aldehyde",
+      "ketone",
+      "amine",
+      "NaBH3CN",
+      "NaBH(OAc)3"
+    ],
+    "description": "Iminium formation followed by reduction."
+  }
+]

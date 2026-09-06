@@ -1,0 +1,79 @@
+[
+  {
+    "name": "Alcohol to aldehyde",
+    "keywords": [
+      "alcohol",
+      "aldehyde",
+      "DMP",
+      "PCC"
+    ],
+    "description": "Oxidation of a primary alcohol to an aldehyde."
+  },
+  {
+    "name": "Alcohol to ketone",
+    "keywords": [
+      "secondary alcohol",
+      "ketone",
+      "DMP",
+      "PCC"
+    ],
+    "description": "Oxidation of a secondary alcohol to a ketone."
+  },
+  {
+    "name": "Carbonyl to alcohol",
+    "keywords": [
+      "ketone",
+      "aldehyde",
+      "NaBH4",
+      "LiAlH4"
+    ],
+    "description": "Reduction of carbonyl to alcohol."
+  },
+  {
+    "name": "Alkene hydrogenation",
+    "keywords": [
+      "alkene",
+      "H2",
+      "hydrogenation"
+    ],
+    "description": "Reduction of C=C."
+  },
+  {
+    "name": "Amine Boc protection",
+    "keywords": [
+      "amine",
+      "Boc2O",
+      "Boc"
+    ],
+    "description": "Formation of Boc carbamate."
+  },
+  {
+    "name": "Boc deprotection",
+    "keywords": [
+      "Boc",
+      "TFA",
+      "HCl"
+    ],
+    "description": "Acid-mediated Boc removal."
+  },
+  {
+    "name": "Aryl halide to biaryl",
+    "keywords": [
+      "aryl halide",
+      "boronic acid",
+      "Suzuki",
+      "palladium"
+    ],
+    "description": "C-C cross coupling."
+  },
+  {
+    "name": "Aryl halide to aryl amine",
+    "keywords": [
+      "aryl halide",
+      "amine",
+      "Buchwald",
+      "palladium"
+    ],
+    "description": "C-N cross coupling."
+  }
+]
